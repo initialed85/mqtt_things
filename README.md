@@ -48,6 +48,10 @@ I'll speak to the top level commands:
 
     ./build.sh
     
+If (like me) you wanna deploy this to a Raspberry Pi, you'll need to change your command line to the following:
+
+    GOOS=linux GOARCH=arm ./build.sh
+
 ## How do I test it?
 
     ./test.sh
