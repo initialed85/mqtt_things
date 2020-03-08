@@ -59,9 +59,9 @@ Here's a dump of all of the command lines as I'm using them around my house (wit
     aircon_cli -host 192.168.137.253 -aircon 192.168.137.20
     heater_cli -host 192.168.137.253 -port /dev/ttyACM0 -relay 1
     http_cli -host 192.168.137.253 -port 8079
-    lights_cli -host 192.168.137.253 -apikey (API key) -bridgehost 192.168.137.252
+    lights_cli -host 192.168.137.253 -apiKey (API key) -bridgeHost 192.168.137.252
     sprinklers_cli -host 192.168.137.253 -port /dev/ttyACM0 -relay 2 -relay 3
-    weather_cli -host 192.168.137.253 -latitude (latitude) -longitude (longitude) -appid (API key)
+    weather_cli -host 192.168.137.253 -latitude (latitude) -longitude (longitude) -appId (API key)
 
 - 192.168.137.253 = MQTT broker
 - 192.168.137.20 = zmote
