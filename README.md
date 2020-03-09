@@ -8,7 +8,7 @@ I'll speak to the top level commands:
 
 - `aircon_cli`
     - Listens for 0 or 1 at `home/inside/aircon/state/set`
-    - Sends packets to a [https://www.zmote.io/](zmote) which sends IR blasts to Fujitsu aircon for two states
+    - Sends packets to a [zmote](https://www.zmote.io) which sends IR blasts to Fujitsu aircon for two states
         - 1 = On at 18 deg C and low fan
         - 0 = Off
     - Writes to `home/inside/aircon/state/get`
