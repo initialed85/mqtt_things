@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const OnCode string = "1:1,0,37000,1,1,122,62,15,16,15,16,15,46,15,16,15,46,15,16,15,16,15,16,15,46,15,46,15,16,15,16,15,16,15,46,15,46,15,16,15,16,14,16,15,16,15,16,14,16,15,16,15,16,14,16,15,16,15,16,15,16,15,16,15,46,15,16,15,16,15,16,15,16,15,16,14,16,15,16,15,46,15,16,15,16,15,16,15,16,15,16,15,46,15,46,15,46,15,46,15,46,15,46,15,16,15,16,15,16,14,47,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,46,15,46,15,16,15,16,15,47,14,16,15,16,15,16,15,16,15,46,15,16,15,16,15,46,15,16,15,16,15,16,15,16,15,16,14,16,15,16,15,46,15,46,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,14,16,15,16,15,16,14,16,15,16,15,16,14,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,16,15,46,15,46,15,16,15,46,15,16,15,46,15,16,15,46,15,3692"
@@ -13,23 +15,30 @@ const OffCode string = "1:1,0,37000,1,1,122,62,15,16,15,16,15,46,15,16,15,46,15,
 
 var TestMode = false
 var TestURL string
-var DefaultClient = http.DefaultClient
+var NetClient = &http.Client{
+	Timeout: time.Second * 5,
+}
 
 func EnableTestMode(client *http.Client, url string) {
 	TestMode = true
 	TestURL = url
-	DefaultClient = client
+	NetClient = client
 }
 
 func sendIR(host, code string) error {
 	var url string
 
+	log.Printf("sending %v to %v", code, host)
+
 	url = fmt.Sprintf("http://%v/uuid", host)
+
+	log.Printf("getting uuid from %v", url)
+
 	if TestMode {
 		url = TestURL
 	}
 
-	resp, err := DefaultClient.Get(url)
+	resp, err := NetClient.Get(url)
 	if err != nil {
 		return err
 	}
@@ -47,12 +56,16 @@ func sendIR(host, code string) error {
 
 	uuid := parts[1]
 
+	log.Printf("got uuid %v", uuid)
+
 	buf := []byte(fmt.Sprintf("sendir,%v", code))
 
 	url = fmt.Sprintf("http://%v/v2/%v", host, uuid)
 	if TestMode {
 		url = TestURL
 	}
+
+	log.Printf("sending %v to %v", code, url)
 
 	resp, err = http.Post(
 		url,
@@ -82,15 +95,22 @@ type Client struct {
 }
 
 func New(host string) Client {
-	return Client{
+	client := Client{
 		host:             host,
 		firstInteraction: true,
 	}
+
+	log.Printf("created %+v", client)
+
+	return client
 }
 
 func (a *Client) TurnOn() error {
+	log.Printf("on requested")
 	if !a.firstInteraction {
 		if a.on {
+			log.Printf("already on")
+
 			return nil
 		}
 	} else {
@@ -102,8 +122,11 @@ func (a *Client) TurnOn() error {
 }
 
 func (a *Client) TurnOff() error {
+	log.Printf("off requested")
 	if !a.firstInteraction {
 		if !a.on {
+			log.Printf("already off")
+
 			return nil
 		}
 	} else {

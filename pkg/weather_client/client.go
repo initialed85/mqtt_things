@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 )
@@ -38,12 +39,14 @@ const Kelvin = 273.15
 
 var TestMode = false
 var TestURL string
-var DefaultClient = http.DefaultClient
+var NetClient = &http.Client{
+	Timeout: time.Second * 5,
+}
 
 func EnableTestMode(client *http.Client, url string) {
 	TestMode = true
 	TestURL = url
-	DefaultClient = client
+	NetClient = client
 }
 
 func getWeather(lat, lon float64, appID string) (Result, error) {
@@ -56,11 +59,13 @@ func getWeather(lat, lon float64, appID string) (Result, error) {
 		appID,
 	)
 
+	log.Printf("getting weather from %v", url)
+
 	if TestMode {
 		url = TestURL
 	}
 
-	resp, err := DefaultClient.Get(url)
+	resp, err := NetClient.Get(url)
 	if err != nil {
 		return weather, err
 	}
@@ -71,12 +76,16 @@ func getWeather(lat, lon float64, appID string) (Result, error) {
 		return weather, err
 	}
 
+	log.Printf("body is %v", string(body))
+
 	weatherResponse := Response{}
 
 	err = json.Unmarshal(body, &weatherResponse)
 	if err != nil {
 		return weather, err
 	}
+
+	log.Printf("response is %+v", weatherResponse)
 
 	weather = Result{
 		Temp:          weatherResponse.Main.Temp - Kelvin,
@@ -87,6 +96,8 @@ func getWeather(lat, lon float64, appID string) (Result, error) {
 		Sunrise:       time.Unix(weatherResponse.Sys.Sunrise, 0),
 		Sunset:        time.Unix(weatherResponse.Sys.Sunset, 0),
 	}
+
+	log.Printf("weather is %+v", weather)
 
 	return weather, nil
 }
@@ -113,15 +124,21 @@ func New(lat, lon float64, appID string, callsPerMinute int, permissibleAge time
 		permissibleAge:   permissibleAge,
 	}
 
+	log.Printf("created %+v", w)
+
 	return w
 }
 
 func (c *Client) GetWeather() (Result, error) {
+	log.Printf("weather requested")
+
 	now := time.Now()
 
 	if !c.firstInteraction {
 		weatherResultAge := now.Sub(c.lastCall).Seconds()
 		if weatherResultAge/(1/c.callsPerSecond) < 1 {
+			log.Printf("rate limited; returning cached weather which is %+v c.lastWeatherResult")
+
 			return c.lastWeatherResult, nil
 		}
 	} else {
@@ -133,6 +150,8 @@ func (c *Client) GetWeather() (Result, error) {
 	if err != nil {
 		return c.lastWeatherResult, err
 	}
+
+	log.Printf("return latest weather which is %+v", weatherResult)
 
 	c.lastWeatherResult = weatherResult
 	c.holdingWeatherResult = true

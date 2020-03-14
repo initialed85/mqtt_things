@@ -3,6 +3,7 @@ package lights_client
 import (
 	"fmt"
 	"github.com/amimof/huego"
+	"log"
 	"strings"
 )
 
@@ -36,14 +37,24 @@ func newLight(hueLight huego.Light) Light {
 		state = Off
 	}
 
-	return Light{
+	light := Light{
 		Name:     formatLightName(hueLight.Name),
 		State:    state,
 		hueLight: hueLight,
 	}
+
+	log.Printf("created %+v from %+v", light, hueLight)
+
+	return light
 }
 
 func (l *Light) On() error {
+	log.Printf("requesting on for %v", l.Name)
+
+	if l.hueLight.IsOn() {
+		log.Printf("%v already on", l.Name)
+	}
+
 	err := l.hueLight.On()
 	if err != nil {
 		return err
@@ -53,6 +64,12 @@ func (l *Light) On() error {
 }
 
 func (l *Light) Off() error {
+	log.Printf("requesting off for %v", l.Name)
+
+	if !l.hueLight.IsOn() {
+		log.Printf("%v already off", l.Name)
+	}
+
 	err := l.hueLight.Off()
 	if err != nil {
 		return err
@@ -62,9 +79,13 @@ func (l *Light) Off() error {
 }
 
 func New(bridgeHost, appName, apiKey string) Client {
-	return Client{
+	client := Client{
 		bridge: huego.New(bridgeHost, appName).Login(apiKey),
 	}
+
+	log.Printf("created %+v", client)
+
+	return client
 }
 
 func (c *Client) GetLights() ([]Light, error) {
@@ -78,10 +99,14 @@ func (c *Client) GetLights() ([]Light, error) {
 		lights = append(lights, newLight(hueLight))
 	}
 
+	log.Printf("built %+v from %+v", lights, hueLights)
+
 	return lights, nil
 }
 
 func (c *Client) GetLight(name string) (Light, error) {
+	log.Printf("getting light for %v", name)
+
 	lights, err := c.GetLights()
 	if err != nil {
 		return Light{}, err
@@ -90,6 +115,7 @@ func (c *Client) GetLight(name string) (Light, error) {
 	for _, light := range lights {
 		// TODO: implicit behaviour is a little gross
 		if light.Name == name || light.Name == formatLightName(name) {
+			log.Printf("found %+v for %v", light, light)
 			return light, nil
 		}
 	}

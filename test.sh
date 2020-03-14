@@ -19,9 +19,13 @@ function setup() {
 
 setup
 
-go test -v ./pkg/aircon_client
-go test -v ./pkg/lights_client
-go test -v ./pkg/mqtt_action_router
-go test -v ./pkg/mqtt_client
-go test -v ./pkg/relays_client
-go test -v ./pkg/weather_client
+if [[ "${*}" == "" ]]; then
+  go test -v ./pkg/aircon_client
+  go test -v ./pkg/lights_client
+  go test -v ./pkg/mqtt_action_router
+  go test -v ./pkg/mqtt_client
+  go test -v ./pkg/relays_client
+  go test -v ./pkg/weather_client
+else
+  go test -v "${@}"
+fi

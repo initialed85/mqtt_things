@@ -3,6 +3,7 @@ package mqtt_client
 import (
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"log"
 	"time"
 )
 
@@ -46,7 +47,7 @@ func New(host, username, password string) (client Client) {
 	client.clientOptions.AddBroker(fmt.Sprintf("tcp://%v:1883", host))
 	client.clientOptions.SetUsername(username)
 	client.clientOptions.SetPassword(password)
-	client.clientOptions.SetPingTimeout(time.Second * 5)
+	client.clientOptions.SetPingTimeout(time.Second * 1)
 	client.clientOptions.SetConnectTimeout(time.Second * 5)
 	client.clientOptions.SetWriteTimeout(time.Second * 5)
 	client.clientOptions.SetAutoReconnect(true)
@@ -54,10 +55,14 @@ func New(host, username, password string) (client Client) {
 
 	client.client = mqtt.NewClient(client.clientOptions)
 
+	log.Printf("created %+v", client)
+
 	return client
 }
 
 func (c *Client) Connect() error {
+	log.Printf("connecting")
+
 	c.connectToken = c.client.Connect()
 	if c.connectToken == nil {
 		return fmt.Errorf("nil token while connecting")
@@ -71,6 +76,8 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+	log.Printf("publishing %v to %v with qos %v and retained %v", topic, payload, qos, retained)
+
 	token := c.client.Publish(topic, qos, retained, payload)
 	if token == nil {
 		return fmt.Errorf("nil token while publishing (%v, %v, %v, %v)", topic, qos, retained, payload)
@@ -97,6 +104,8 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(Message)) error
 		})
 	}
 
+	log.Printf("subscribing to %v callback %p and qos %v", topic, callback, qos)
+
 	token := c.client.Subscribe(topic, qos, wrappedCallback)
 	if token == nil {
 		return fmt.Errorf("nil token while subscribing (%v, %v)", topic, qos)
@@ -110,6 +119,8 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(Message)) error
 }
 
 func (c *Client) Unsubscribe(topic string) error {
+	log.Printf("unsubscribing from %v", topic)
+
 	token := c.client.Unsubscribe(topic)
 	if token == nil {
 		return fmt.Errorf("nil token while unsubscribing (%v)", topic)
@@ -123,6 +134,8 @@ func (c *Client) Unsubscribe(topic string) error {
 }
 
 func (c *Client) Disconnect() error {
+	log.Printf("disconnecting")
+
 	if c.connectToken == nil {
 		return fmt.Errorf("nil token while disconnecting")
 	}

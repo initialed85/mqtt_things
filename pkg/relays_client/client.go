@@ -3,6 +3,7 @@ package relays_client
 import (
 	"fmt"
 	"github.com/tarm/serial"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +58,8 @@ func (tp *TestPort) Close() error {
 }
 
 func Read(port PortInterface) (string, error) {
+	log.Printf("reading from %+v", port)
+
 	buf := make([]byte, 1)
 
 	_, err := port.Read(buf)
@@ -68,6 +71,8 @@ func Read(port PortInterface) (string, error) {
 }
 
 func ReadUntil(port PortInterface, until string) (string, error) {
+	log.Printf("reading until %v from %+v", until, port)
+
 	var data string
 
 	for {
@@ -87,12 +92,16 @@ func ReadUntil(port PortInterface, until string) (string, error) {
 }
 
 func Write(port PortInterface, data string) error {
+	log.Printf("writing %v to %+v", data, port)
+
 	_, err := port.Write([]byte(data))
 
 	return err
 }
 
 func Close(port PortInterface) error {
+	log.Printf("closing %+v", port)
+
 	return port.Close()
 }
 
@@ -127,10 +136,14 @@ func New(port string, bitRate int) (Client, error) {
 
 	r.port = p
 
+	log.Printf("created %+v", r)
+
 	return r, nil
 }
 
 func (c *Client) setState(relay int64, state string) error {
+	log.Printf("setting relay %v to %v", relay, state)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

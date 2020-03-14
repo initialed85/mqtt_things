@@ -1,8 +1,8 @@
 package mqtt_action_router
 
 import (
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"fmt"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"log"
 	"strconv"
 	"sync"
@@ -64,7 +64,7 @@ func newAction(setTopic string, arguments interface{}, on func(interface{}) erro
 }
 
 func (a *action) actuate(state State) error {
-	log.Printf("actuate called with state %+v", state)
+	log.Printf("actuate called with state %+v; grabbing lock", state)
 
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
@@ -84,14 +84,14 @@ func (a *action) actuate(state State) error {
 
 	go func() {
 		payload := fmt.Sprintf("%v", state)
-		log.Printf("published %v to %v ", payload, a.getTopic)
+		log.Printf("publishing %v to %v ", payload, a.getTopic)
 		err := a.client.Publish(a.getTopic, mqtt_client.ExactlyOnce, true, payload)
 		if err != nil {
 			log.Printf("failed to publish %v to %v because %v", payload, a.getTopic, err)
 		}
 	}()
 
-	log.Printf("debouncing for %+v", a.debounce)
+	log.Printf("debouncing for %+v, lock will be released", a.debounce)
 	time.Sleep(a.debounce)
 
 	return err
@@ -159,15 +159,21 @@ type Router struct {
 }
 
 func New(client mqtt_client.Client, debounce time.Duration, allowConcurrentActions bool) Router {
-	return Router{
+	router := Router{
 		client:          client,
 		debounce:        debounce,
 		useActionsMutex: !allowConcurrentActions,
 		actions:         make(map[string]action),
 	}
+
+	log.Printf("created router %v", router)
+
+	return router
 }
 
 func (a *Router) RemoveAction(setTopic string) error {
+	log.Printf("removing action for %v", setTopic)
+
 	a.actionsMapMutex.Lock()
 	defer a.actionsMapMutex.Unlock()
 
@@ -185,6 +191,8 @@ func (a *Router) RemoveAction(setTopic string) error {
 }
 
 func (a *Router) RemoveAllActions() error {
+	log.Printf("removing all actions")
+
 	a.actionsMapMutex.Lock()
 	defer a.actionsMapMutex.Unlock()
 
@@ -206,6 +214,8 @@ func (a *Router) RemoveAllActions() error {
 }
 
 func (a *Router) AddAction(setTopic string, arguments interface{}, on func(interface{}) error, off func(interface{}) error, baseState State, getTopic string) error {
+	log.Printf("adding action for %v, arguments are %+v, on func is %p, off func is %p", setTopic, arguments, on, off)
+
 	a.actionsMapMutex.Lock()
 	defer a.actionsMapMutex.Unlock()
 
