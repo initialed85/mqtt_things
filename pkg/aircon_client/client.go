@@ -80,11 +80,11 @@ func sendIR(host, code string) error {
 	return nil
 }
 
-func TurnOn(host string) error {
+func on(host string) error {
 	return sendIR(host, OnCode)
 }
 
-func TurnOff(host string) error {
+func off(host string) error {
 	return sendIR(host, OffCode)
 }
 
@@ -105,7 +105,7 @@ func New(host string) Client {
 	return client
 }
 
-func (a *Client) TurnOn() error {
+func (a *Client) On() error {
 	log.Printf("on requested")
 	if !a.firstInteraction {
 		if a.on {
@@ -118,10 +118,10 @@ func (a *Client) TurnOn() error {
 	}
 
 	a.on = true
-	return TurnOn(a.host)
+	return on(a.host)
 }
 
-func (a *Client) TurnOff() error {
+func (a *Client) Off() error {
 	log.Printf("off requested")
 	if !a.firstInteraction {
 		if !a.on {
@@ -134,5 +134,5 @@ func (a *Client) TurnOff() error {
 	}
 
 	a.on = false
-	return TurnOff(a.host)
+	return off(a.host)
 }

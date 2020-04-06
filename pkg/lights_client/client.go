@@ -15,10 +15,6 @@ const (
 	On      State = 1
 )
 
-type Client struct {
-	bridge *huego.Bridge
-}
-
 type Light struct {
 	Name     string
 	State    State
@@ -76,6 +72,10 @@ func (l *Light) Off() error {
 	}
 
 	return nil
+}
+
+type Client struct {
+	bridge *huego.Bridge
 }
 
 func New(bridgeHost, appName, apiKey string) Client {

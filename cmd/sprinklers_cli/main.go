@@ -16,8 +16,6 @@ import (
 
 type flagArrayInt64 []int64
 
-var relaysPtr flagArrayInt64
-
 func (f *flagArrayInt64) String() string {
 	return fmt.Sprintf("%d", f)
 }
@@ -32,6 +30,8 @@ func (f *flagArrayInt64) Set(value string) error {
 
 	return nil
 }
+
+var relaysPtr flagArrayInt64
 
 func main() {
 	hostPtr := flag.String("host", "", "mqtt broker host")

@@ -39,13 +39,13 @@ func getTestHTTPServer() *TestHTTPServer {
 	return &t
 }
 
-func TestTurnOn(t *testing.T) {
+func TestOn(t *testing.T) {
 	testHTTPServer := getTestHTTPServer()
 	defer testHTTPServer.Close()
 
 	EnableTestMode(testHTTPServer.Client, testHTTPServer.URL)
 
-	err := TurnOn("192.168.137.20")
+	err := on("192.168.137.20")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,13 +54,13 @@ func TestTurnOn(t *testing.T) {
 	assert.Equal(t, 2, testHTTPServer.CallCount)
 }
 
-func TestTurnOff(t *testing.T) {
+func TestOff(t *testing.T) {
 	testHTTPServer := getTestHTTPServer()
 	defer testHTTPServer.Close()
 
 	EnableTestMode(testHTTPServer.Client, testHTTPServer.URL)
 
-	err := TurnOff("192.168.137.20")
+	err := off("192.168.137.20")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestNew(t *testing.T) {
 	var err error
 
 	for i := 0; i < 16; i++ {
-		err = a.TurnOn()
+		err = a.On()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -92,7 +92,7 @@ func TestNew(t *testing.T) {
 	ts.CallCount = 0
 
 	for i := 0; i < 16; i++ {
-		err = a.TurnOff()
+		err = a.Off()
 		if err != nil {
 			log.Fatal(err)
 		}

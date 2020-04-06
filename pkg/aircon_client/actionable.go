@@ -8,9 +8,9 @@ type Actionable struct {
 }
 
 func (a *Actionable) On(arguments interface{}) error {
-	return a.Client.TurnOn()
+	return a.Client.On()
 }
 
 func (a *Actionable) Off(arguments interface{}) error {
-	return a.Client.TurnOff()
+	return a.Client.Off()
 }

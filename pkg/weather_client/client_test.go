@@ -44,7 +44,7 @@ func TestGetWeather(t *testing.T) {
 	testHTTPServer := getTestHTTPServer()
 	defer testHTTPServer.Close()
 
-	EnableTestMode(testHTTPServer.Client, testHTTPServer.URL)
+	enableTestMode(testHTTPServer.Client, testHTTPServer.URL)
 
 	weatherResult, err := getWeather(-31.923148, 115.894575, "d59f6762bf26d648a301f363cd84405f")
 	if err != nil {
@@ -65,7 +65,7 @@ func TestNewWeather(t *testing.T) {
 	testHTTPServer := getTestHTTPServer()
 	defer testHTTPServer.Close()
 
-	EnableTestMode(testHTTPServer.Client, testHTTPServer.URL)
+	enableTestMode(testHTTPServer.Client, testHTTPServer.URL)
 
 	weather := New(
 		-31.923148,

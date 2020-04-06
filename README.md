@@ -33,6 +33,11 @@ I'll speak to the top level commands:
     - Listens for 0 or 1 at `/home/outside/sprinklers/bank/(number)/set`
     - Sends serial data to an Arduino (see `res/arduino`) for the specified relay numbers
     - Writes to `/home/outside/sprinklers/bank/(number)/get`
+- `switches_cli`
+    - Interacts with a Tasmota-flashed Kogan/Powertech (Jaycar) WiFi smart plug
+    - Listens for a 0 or 1 at `home/inside/switches/globe/(name)/state/set`
+    - Interacts with the Tasmota device via HTTP
+    - Writes to `home/inside/switches/globe/(name)/state/get` 
 - `weather_cli`
     - Interacts with OpenWeatherAPI with a specific API key for a specific location
     - Writes to the following topics
@@ -65,9 +70,11 @@ Here's a dump of all of the command lines as I'm using them around my house (wit
     http_cli -host 192.168.137.253 -port 8079
     lights_cli -host 192.168.137.253 -apiKey (API key) -bridgeHost 192.168.137.252
     sprinklers_cli -host 192.168.137.253 -port /dev/ttyACM0 -relay 2 -relay 3
+    switches_cli -host 192.168.137.253 -switchName tuya_1 -switchHost 192.168.137.15
     weather_cli -host 192.168.137.253 -latitude (latitude) -longitude (longitude) -appId (API key)
 
 - 192.168.137.253 = MQTT broker
 - 192.168.137.20 = zmote
 - 192.168.137.252 = Philips Hue bridge
 - /dev/ttyACM0 = USB serial port exposed by Arduino (when plugged into a Raspberry Pi)
+- 192.168.137.15 = Powertech smart plug

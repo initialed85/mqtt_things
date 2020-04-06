@@ -10,7 +10,7 @@ import (
 const TestMessage = "relay 3 change to state on\r\n"
 
 func TestNew(t *testing.T) {
-	EnableTestMode()
+	enableTestMode()
 
 	r, err := New("/dev/ttyACM0", 9600)
 	if err != nil {

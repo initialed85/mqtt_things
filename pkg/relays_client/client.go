@@ -12,7 +12,7 @@ import (
 var TestMode = false
 var TestPortInstance TestPort
 
-func EnableTestMode() {
+func enableTestMode() {
 	TestMode = true
 }
 

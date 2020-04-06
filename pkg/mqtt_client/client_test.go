@@ -12,7 +12,7 @@ const (
 
 func TestClient_All(t *testing.T) {
 	// NOTE: requires a local eclipse-mosquitto Docker container to be running
-	EnableTestMode("127.0.0.1")
+	enableTestMode("127.0.0.1")
 
 	client := New("192.168.137.253", "", "")
 

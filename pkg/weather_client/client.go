@@ -43,7 +43,7 @@ var NetClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
-func EnableTestMode(client *http.Client, url string) {
+func enableTestMode(client *http.Client, url string) {
 	TestMode = true
 	TestURL = url
 	NetClient = client
@@ -137,7 +137,7 @@ func (c *Client) GetWeather() (Result, error) {
 	if !c.firstInteraction {
 		weatherResultAge := now.Sub(c.lastCall).Seconds()
 		if weatherResultAge/(1/c.callsPerSecond) < 1 {
-			log.Printf("rate limited; returning cached weather which is %+v c.lastWeatherResult")
+			log.Printf("rate limited; returning cached weather which is %+v", c.lastWeatherResult)
 
 			return c.lastWeatherResult, nil
 		}

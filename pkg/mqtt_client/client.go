@@ -16,7 +16,7 @@ const (
 var TestMode = false
 var TestHost string
 
-func EnableTestMode(host string) {
+func enableTestMode(host string) {
 	TestMode = true
 	TestHost = host
 }
