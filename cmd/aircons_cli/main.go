@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/initialed85/mqtt_things/pkg/aircons_client"
 	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
 	"github.com/initialed85/mqtt_things/pkg/mqtt_client"
-	"github.com/initialed85/mqtt_things/pkg/switches_client"
 	"log"
 	"os"
 	"os/signal"
@@ -26,16 +26,18 @@ func (f *flagArrayString) Set(value string) error {
 }
 
 var (
-	names flagArrayString
-	hosts flagArrayString
+	names      flagArrayString
+	hosts      flagArrayString
+	codesNames flagArrayString
 )
 
 func main() {
 	hostPtr := flag.String("host", "", "mqtt broker host")
 	usernamePtr := flag.String("username", "", "mqtt username")
 	passwordPtr := flag.String("password", "", "mqtt password")
-	flag.Var(&hosts, "switchHost", "a host for a switch")
-	flag.Var(&names, "switchName", "a name for a switch")
+	flag.Var(&hosts, "airconHost", "a host for an aircon")
+	flag.Var(&names, "airconName", "a name for an aircon")
+	flag.Var(&codesNames, "airconCodesName", "a codes name for an aircon")
 
 	flag.Parse()
 
@@ -46,34 +48,41 @@ func main() {
 	}
 
 	if len(hosts) == 0 {
-		log.Fatal("no -switchHost flags specified")
+		log.Fatal("no -airconHost flags specified")
 	}
 
 	if len(names) == 0 {
-		log.Fatal("no -switchName flags specified")
+		log.Fatal("no -airconName flags specified")
 	}
 
-	if len(hosts) != len(names) {
-		log.Fatal("unbalanced mixture of -switchHost and -switchName flags")
+	if len(codesNames) == 0 {
+		log.Fatal("no -airconCodesName flags specified")
 	}
 
-	hostsAndName := make([]switches_client.HostAndName, 0)
+	if len(names) != len(hosts) || len(names) != len(codesNames) {
+		log.Fatal("unbalanced mixture of -airconName and -airconName and airconCodesName flags")
+	}
+
+	hostAndNameAndCodesName := make([]aircons_client.HostAndNameAndCodesName, 0)
 	for i, name := range names {
-		host := hosts[i]
-		hostsAndName = append(hostsAndName, switches_client.HostAndName{
-			Host: host,
-			Name: name,
+		hostAndNameAndCodesName = append(hostAndNameAndCodesName, aircons_client.HostAndNameAndCodesName{
+			Host:      hosts[i],
+			Name:      name,
+			CodesName: codesNames[i],
 		})
 	}
 
-	switchesClient := switches_client.New(hostsAndName)
+	airconsClient, err := aircons_client.New(hostAndNameAndCodesName)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	actionable := switches_client.Actionable{
-		Client: switchesClient,
+	actionable := aircons_client.Actionable{
+		Client: airconsClient,
 	}
 
 	mqttClient := mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
-	err := mqttClient.Connect()
+	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,19 +93,19 @@ func main() {
 		true,
 	)
 
-	switches, err := switchesClient.GetSwitches()
+	aircons, err := airconsClient.GetAircons()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, s := range switches {
+	for _, a := range aircons {
 		err = actionRouter.AddAction(
-			fmt.Sprintf("home/inside/switches/globe/%v/state/set", s.Name),
-			switches_client.Arguments{Name: s.Name},
+			fmt.Sprintf("home/inside/aircons/%v/state/set", a.Name),
+			aircons_client.Arguments{Name: a.Name},
 			actionable.On,
 			actionable.Off,
 			mqtt_action_router.Off,
-			fmt.Sprintf("home/inside/switches/globe/%v/state/get", s.Name),
+			fmt.Sprintf("home/inside/aircons/%v/state/get", a.Name),
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -125,17 +134,17 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			switches, err := switchesClient.GetSwitches()
+			aircons, err := airconsClient.GetAircons()
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			for _, s := range switches {
+			for _, a := range aircons {
 				err := mqttClient.Publish(
-					fmt.Sprintf("home/inside/switches/globe/%v/state/get", s.Name),
+					fmt.Sprintf("home/inside/aircons/%v/state/get", a.Name),
 					mqtt_client.ExactlyOnce,
 					true,
-					fmt.Sprintf("%v", s.State),
+					fmt.Sprintf("%v", a.State),
 				)
 				if err != nil {
 					log.Fatal(err)

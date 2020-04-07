@@ -1,4 +1,4 @@
-package aircon_client
+package aircons_client
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ func TestOn(t *testing.T) {
 	testHTTPServer := getTestHTTPServer()
 	defer testHTTPServer.Close()
 
-	EnableTestMode(testHTTPServer.Client, testHTTPServer.URL)
+	enableTestMode(testHTTPServer.Client, testHTTPServer.URL)
 
 	err := on("192.168.137.20")
 	if err != nil {
@@ -58,7 +58,7 @@ func TestOff(t *testing.T) {
 	testHTTPServer := getTestHTTPServer()
 	defer testHTTPServer.Close()
 
-	EnableTestMode(testHTTPServer.Client, testHTTPServer.URL)
+	enableTestMode(testHTTPServer.Client, testHTTPServer.URL)
 
 	err := off("192.168.137.20")
 	if err != nil {
@@ -73,11 +73,25 @@ func TestNew(t *testing.T) {
 	ts := getTestHTTPServer()
 	defer ts.Close()
 
-	EnableTestMode(ts.Client, ts.URL)
+	enableTestMode(ts.Client, ts.URL)
 
-	a := New("192.168.137.20")
+	hostAndNameAndCodesName := []HostAndNameAndCodesName{
+		{
+			Host:      "192.168.137.20",
+			Name:      "fujitsu_1",
+			CodesName: "fujitsu",
+		},
+	}
 
-	var err error
+	client, err := New(hostAndNameAndCodesName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	a, err := client.GetAircon("fujitsu_1")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for i := 0; i < 16; i++ {
 		err = a.On()

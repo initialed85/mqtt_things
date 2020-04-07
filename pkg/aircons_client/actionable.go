@@ -1,4 +1,4 @@
-package switches_client
+package aircons_client
 
 type Arguments struct {
 	Name string
@@ -9,19 +9,19 @@ type Actionable struct {
 }
 
 func (a *Actionable) On(arguments interface{}) error {
-	s, err := a.Client.GetSwitch(arguments.(Arguments).Name)
+	aircon, err := a.Client.GetAircon(arguments.(Arguments).Name)
 	if err != nil {
 		return err
 	}
 
-	return s.On()
+	return aircon.On()
 }
 
 func (a *Actionable) Off(arguments interface{}) error {
-	s, err := a.Client.GetSwitch(arguments.(Arguments).Name)
+	aircon, err := a.Client.GetAircon(arguments.(Arguments).Name)
 	if err != nil {
 		return err
 	}
 
-	return s.Off()
+	return aircon.Off()
 }

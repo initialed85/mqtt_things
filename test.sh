@@ -20,7 +20,7 @@ function setup() {
 setup
 
 if [[ "${*}" == "" ]]; then
-  go test -v ./pkg/aircon_client
+  go test -v ./pkg/aircons_client
   go test -v ./pkg/lights_client
   go test -v ./pkg/mqtt_action_router
   go test -v ./pkg/mqtt_client

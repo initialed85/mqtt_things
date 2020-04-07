@@ -4,7 +4,7 @@ set -e -x
 
 mkdir -p bin/native || true
 
-go build -v -o bin/native/aircon_cli cmd/aircon_cli/main.go
+go build -v -o bin/native/aircons_cli cmd/aircons_cli/main.go
 go build -v -o bin/native/heater_cli cmd/heater_cli/main.go
 go build -v -o bin/native/http_cli cmd/http_cli/main.go
 go build -v -o bin/native/lights_cli cmd/lights_cli/main.go

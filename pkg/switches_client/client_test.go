@@ -82,9 +82,15 @@ func TestNew(t *testing.T) {
 
 	enableTestMode(testHTTPServer.Client, testHTTPServer.URL)
 
-	client := New(map[string]string{
-		"tuya_1": "192.168.137.15",
-		"tuya_2": "192.168.137.16",
+	client := New([]HostAndName{
+		{
+			Host: "192.168.137.15",
+			Name: "tuya_1",
+		},
+		{
+			Host: "192.168.137.16",
+			Name: "tuya_2",
+		},
 	})
 
 	testResponseBody = getOn

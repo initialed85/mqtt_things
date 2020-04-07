@@ -160,15 +160,20 @@ func (s *Switch) Off() error {
 	return s.Update()
 }
 
+type HostAndName struct {
+	Host string
+	Name string
+}
+
 type Client struct {
 	switchByName map[string]Switch
 }
 
-func New(hostByName map[string]string) Client {
+func New(hostsAndNames []HostAndName) Client {
 	switchByName := make(map[string]Switch)
 
-	for name, host := range hostByName {
-		switchByName[name] = NewSwitch(host, name)
+	for _, hostAndName := range hostsAndNames {
+		switchByName[hostAndName.Name] = NewSwitch(hostAndName.Host, hostAndName.Name)
 	}
 
 	return Client{

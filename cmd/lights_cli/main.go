@@ -90,7 +90,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	ticker := time.NewTicker(time.Second * 1)
+	ticker := time.NewTicker(time.Millisecond * 100)
 
 	for {
 		select {
