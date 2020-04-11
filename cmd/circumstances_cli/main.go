@@ -46,7 +46,12 @@ func parseTimestamp(payload string) (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	return time.Unix(unixTimestampNanoseconds/1000, 0), nil
+	timestampUtc := time.Unix(unixTimestampNanoseconds/1000, 0)
+
+	return time.Parse(
+		"2006-01-02 15:04:05 MST",
+		fmt.Sprintf("%v %v", timestampUtc, time.Now().Format("MST")),
+	)
 }
 
 func handleMessage(message mqtt_client.Message) {

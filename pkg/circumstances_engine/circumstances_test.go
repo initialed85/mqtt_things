@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func getTime(timeString string) time.Time {
+func getTimeForTesting(timeString string) time.Time {
 	t, err := time.Parse("2006-01-02 15:04:05", timeString)
 	if err != nil {
 		log.Fatal(err)
@@ -21,10 +21,10 @@ func TestCalculateCircumstances_Sunrise(t *testing.T) {
 
 	// before
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 05:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 05:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
@@ -37,10 +37,10 @@ func TestCalculateCircumstances_Sunrise(t *testing.T) {
 
 	// before (but not according to the data because it hasn't updated for some reason)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 05:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 05:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
@@ -53,10 +53,10 @@ func TestCalculateCircumstances_Sunrise(t *testing.T) {
 
 	// after
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 07:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 07:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
@@ -69,10 +69,10 @@ func TestCalculateCircumstances_Sunrise(t *testing.T) {
 
 	// after (but not according to the data because it hasn't updated for some reason)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 07:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 07:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
@@ -85,10 +85,10 @@ func TestCalculateCircumstances_Sunrise(t *testing.T) {
 
 	// after both sunrise and sunset (special case; look to next sunrise, not previous)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 19:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 19:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
@@ -105,10 +105,10 @@ func TestCalculateCircumstances_Sunset(t *testing.T) {
 
 	// before
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 17:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 17:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -117,10 +117,10 @@ func TestCalculateCircumstances_Sunset(t *testing.T) {
 
 	// before (but not according to the data because it hasn't updated for some reason)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 17:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 17:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -129,34 +129,34 @@ func TestCalculateCircumstances_Sunset(t *testing.T) {
 
 	// after
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 19:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 19:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
 	assert.Equal(t, false, circumstances.BeforeSunset)
 	assert.Equal(t, true, circumstances.AfterSunset)
 
-	// after (but not according to the data because it hasn't updated for some reason)
+	// after (but after midnight)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 19:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 01:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-07 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
 	assert.Equal(t, false, circumstances.BeforeSunset)
 	assert.Equal(t, true, circumstances.AfterSunset)
 
-	// after both sunset and bedtime (special case; look to next sunset, not previous)
+	// after both sunset and bedtime
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 23:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 23:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
@@ -164,8 +164,8 @@ func TestCalculateCircumstances_Sunset(t *testing.T) {
 		12,
 		time.Duration(0),
 	)
-	assert.Equal(t, true, circumstances.BeforeSunset)
-	assert.Equal(t, false, circumstances.AfterSunset)
+	assert.Equal(t, false, circumstances.BeforeSunset)
+	assert.Equal(t, true, circumstances.AfterSunset)
 }
 
 func TestCalculateCircumstances_Bedtime(t *testing.T) {
@@ -173,10 +173,10 @@ func TestCalculateCircumstances_Bedtime(t *testing.T) {
 
 	// before
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 21:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 21:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -185,10 +185,10 @@ func TestCalculateCircumstances_Bedtime(t *testing.T) {
 
 	// before (but not according to the data because it hasn't updated for some reason)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 21:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 21:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -197,10 +197,10 @@ func TestCalculateCircumstances_Bedtime(t *testing.T) {
 
 	// after
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 23:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 23:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -209,10 +209,10 @@ func TestCalculateCircumstances_Bedtime(t *testing.T) {
 
 	// after (but not according to the data because it hasn't updated for some reason)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 23:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 23:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -221,10 +221,10 @@ func TestCalculateCircumstances_Bedtime(t *testing.T) {
 
 	// after (but it's the next day and so now has also been adjusted)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 23:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-07 22:00:00"),
+		getTimeForTesting("1991-02-07 23:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-07 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -233,10 +233,10 @@ func TestCalculateCircumstances_Bedtime(t *testing.T) {
 
 	// after (but our now is newer than the data)
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-07 23:00:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-07 23:00:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		0, 0, 0, 0, 0,
 		time.Duration(0),
 	)
@@ -249,32 +249,32 @@ func TestCalculateCircumstances_Offset(t *testing.T) {
 
 	// before offset sunrise
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 05:44:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 05:44:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
 		10,
 		12,
-		time.Duration(15) * time.Minute,
+		time.Duration(15)*time.Minute,
 	)
 	assert.Equal(t, true, circumstances.BeforeSunrise)
 	assert.Equal(t, false, circumstances.AfterSunrise)
 
 	// after offset sunrise
 	circumstances = CalculateCircumstances(
-		getTime("1991-02-06 05:46:00"),
-		getTime("1991-02-06 06:00:00"),
-		getTime("1991-02-06 18:00:00"),
-		getTime("1991-02-06 22:00:00"),
+		getTimeForTesting("1991-02-06 05:46:00"),
+		getTimeForTesting("1991-02-06 06:00:00"),
+		getTimeForTesting("1991-02-06 18:00:00"),
+		getTimeForTesting("1991-02-06 22:00:00"),
 		23,
 		29,
 		27,
 		10,
 		12,
-		time.Duration(15) * time.Minute,
+		time.Duration(15)*time.Minute,
 	)
 	assert.Equal(t, false, circumstances.BeforeSunrise)
 	assert.Equal(t, true, circumstances.AfterSunrise)

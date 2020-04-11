@@ -13,35 +13,64 @@ type Circumstances struct {
 	Hot, Comfortable, Cold                                                              bool
 }
 
-func getDate(timestamp time.Time) time.Time {
-	t, _ := time.Parse("2006-01-02", timestamp.Format("2006-01-02"))
+func getTime(timestamp string) (time.Time, error) {
+	return time.Parse("15:04:05", timestamp)
+}
 
-	return t
+func recreateForNow(timestamp, now time.Time) time.Time {
+	nowDate := now.Format("2006-01-02")
+	timestampTime := timestamp.Format("15:04:05")
+
+	recreated, _ := time.Parse(
+		"2006-01-02 15:04:05 MST",
+		fmt.Sprintf("%v %v %v", nowDate, timestampTime, now.Format("MST")),
+	)
+
+	return recreated
 }
 
 func CalculateCircumstances(now, sunrise, sunset, bedtime time.Time, temperature, hotEntry, hotExit, coldEntry, coldExit float64, offset time.Duration) Circumstances {
 	var beforeSunrise, afterSunrise, beforeSunset, afterSunset, beforeBedtime, afterBedtime, hot, comfortable, cold bool
 
-	// move sunrise to same day to handle any missing data
-	sunriseDiff := getDate(now).Sub(getDate(sunrise)).Hours() / 24
-	if sunriseDiff > 0 {
-		log.Printf("sunrise %v is old by %v days, fixing", sunrise, sunriseDiff)
-		sunrise = sunrise.Add(time.Duration(sunriseDiff) * time.Hour * 24)
+	log.Printf(
+		"getting circumstances for %v, %v, %v, %v, %v, %v, %v, %v, %v, %v",
+		now,
+		sunrise,
+		sunset,
+		bedtime,
+		temperature,
+		hotEntry,
+		hotExit,
+		coldEntry,
+		coldExit,
+		offset,
+	)
+
+	midnight, _ := getTime("00:00:00")
+	midnight = recreateForNow(midnight, now)
+
+	midday, _ := getTime("12:00:00")
+	midday = recreateForNow(midday, now)
+
+	afterMidnight := now.After(midnight.Add(-offset)) && now.Before(midday.Add(-offset))
+	log.Printf("afterMidnight is %v", afterMidnight)
+
+	if afterMidnight {
+		sunrise = recreateForNow(sunrise, now)
+		sunset = recreateForNow(sunset, now).Add(-time.Hour * 24)
+		bedtime = recreateForNow(bedtime, now).Add(-time.Hour * 24)
+	} else {
+		sunrise = recreateForNow(sunrise, now).Add(time.Hour * 24)
+		sunset = recreateForNow(sunset, now)
+		bedtime = recreateForNow(bedtime, now)
 	}
 
-	// move sunset to same day to handle any missing data
-	sunsetDiff := getDate(now).Sub(getDate(sunset)).Hours() / 24
-	if sunsetDiff > 0 {
-		log.Printf("sunset %v is old by %v days, fixing", sunset, sunsetDiff)
-		sunset = sunset.Add(time.Duration(sunsetDiff) * time.Hour * 24)
-	}
-
-	// move bedtime to same day to handle any missing data
-	bedtimeDiff := getDate(now).Sub(getDate(bedtime)).Hours() / 24
-	if bedtimeDiff > 0 {
-		log.Printf("bedtime %v is old by %v days, fixing", bedtime, bedtimeDiff)
-		bedtime = bedtime.Add(time.Duration(bedtimeDiff) * time.Hour * 24)
-	}
+	log.Printf(
+		"sunrise %v, sunset %v, bedtime %v",
+		sunrise,
+		sunset,
+		bedtime,
+	)
 
 	beforeSunrise = now.Before(sunrise.Add(-offset))
 	afterSunrise = now.After(sunrise.Add(-offset))
@@ -55,18 +84,6 @@ func CalculateCircumstances(now, sunrise, sunset, bedtime time.Time, temperature
 	cold = temperature <= coldEntry
 	comfortable = temperature >= coldExit && temperature <= hotExit
 	hot = temperature >= hotEntry
-
-	// once we're after sunset, look at the next sunrise (not the previous)
-	if afterSunset {
-		beforeSunrise = true
-		afterSunrise = false
-	}
-
-	// once we're after bedtime, look at the next sunset (not the previous)
-	if afterBedtime {
-		beforeSunset = true
-		afterSunset = false
-	}
 
 	circumstances := Circumstances{
 		Timestamp:     now,
