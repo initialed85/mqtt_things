@@ -57,13 +57,13 @@ func CalculateCircumstances(now, sunrise, sunset, bedtime time.Time, temperature
 	hot = temperature >= hotEntry
 
 	// once we're after sunset, look at the next sunrise (not the previous)
-	if afterSunset && afterSunrise {
+	if afterSunset {
 		beforeSunrise = true
 		afterSunrise = false
 	}
 
 	// once we're after bedtime, look at the next sunset (not the previous)
-	if afterBedtime && afterSunset {
+	if afterBedtime {
 		beforeSunset = true
 		afterSunset = false
 	}

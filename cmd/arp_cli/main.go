@@ -48,7 +48,7 @@ func (f *flagArrayString) Set(value string) error {
 
 const (
 	topicPrefix     = "home/arp"
-	timeoutDuration = time.Second * 30
+	timeoutDuration = time.Second * 5
 )
 
 var (

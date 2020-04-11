@@ -218,6 +218,30 @@ func TestCalculateCircumstances_Bedtime(t *testing.T) {
 	)
 	assert.Equal(t, false, circumstances.BeforeBedtime)
 	assert.Equal(t, true, circumstances.AfterBedtime)
+
+	// after (but it's the next day and so now has also been adjusted)
+	circumstances = CalculateCircumstances(
+		getTime("1991-02-07 23:00:00"),
+		getTime("1991-02-06 06:00:00"),
+		getTime("1991-02-06 18:00:00"),
+		getTime("1991-02-07 22:00:00"),
+		0, 0, 0, 0, 0,
+		time.Duration(0),
+	)
+	assert.Equal(t, false, circumstances.BeforeBedtime)
+	assert.Equal(t, true, circumstances.AfterBedtime)
+
+	// after (but our now is newer than the data)
+	circumstances = CalculateCircumstances(
+		getTime("1991-02-07 23:00:00"),
+		getTime("1991-02-06 06:00:00"),
+		getTime("1991-02-06 18:00:00"),
+		getTime("1991-02-06 22:00:00"),
+		0, 0, 0, 0, 0,
+		time.Duration(0),
+	)
+	assert.Equal(t, false, circumstances.BeforeBedtime)
+	assert.Equal(t, true, circumstances.AfterBedtime)
 }
 
 func TestCalculateCircumstances_Offset(t *testing.T) {
@@ -398,15 +422,15 @@ func TestGetTopicsAndCircumstances(t *testing.T) {
 
 	assert.Equal(t,
 		[]TopicAndCircumstance{
-			{"home/circumstances/before_sunrise/get", "1"},
-			{"home/circumstances/after_sunrise/get", "0"},
-			{"home/circumstances/before_sunset/get", "0"},
-			{"home/circumstances/after_sunset/get", "0"},
-			{"home/circumstances/before_bedtime/get", "0"},
-			{"home/circumstances/after_bedtime/get", "1"},
-			{"home/circumstances/hot/get", "0"},
-			{"home/circumstances/comfortable/get", "0"},
-			{"home/circumstances/cold/get", "1"},
+			{"home/circumstances/before_sunrise_15m_later/get", "1"},
+			{"home/circumstances/after_sunrise_15m_later/get", "0"},
+			{"home/circumstances/before_sunset_15m_later/get", "0"},
+			{"home/circumstances/after_sunset_15m_later/get", "0"},
+			{"home/circumstances/before_bedtime_15m_later/get", "0"},
+			{"home/circumstances/after_bedtime_15m_later/get", "1"},
+			{"home/circumstances/hot_15m_later/get", "0"},
+			{"home/circumstances/comfortable_15m_later/get", "0"},
+			{"home/circumstances/cold_15m_later/get", "1"},
 		},
 		GetTopicsAndCircumstances(circumstances, "home/circumstances", "_15m_later"),
 	)
