@@ -223,7 +223,7 @@ func publish() {
 		case <-ticker.C:
 			for ip, state := range lastStateByIP {
 				err := mqttClient.Publish(
-					fmt.Sprintf("%v/%v", topicPrefix, ip),
+					fmt.Sprintf("%v/%v/get", topicPrefix, ip),
 					mqtt_client.ExactlyOnce,
 					false,
 					state,
@@ -298,7 +298,7 @@ func main() {
 		<-c
 		for _, ip := range arpIPs {
 			err := mqttClient.Publish(
-				fmt.Sprintf("%v/%v", topicPrefix, ip),
+				fmt.Sprintf("%v/%v/get", topicPrefix, ip),
 				mqtt_client.ExactlyOnce,
 				false,
 				"0",
