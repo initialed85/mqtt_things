@@ -136,20 +136,24 @@ func main() {
 		offset                   time.Duration
 		lastCircumstancesByTopic map[string]string
 		suffix                   string
+		filter                   []string
 	}{
 		{
 			time.Duration(0),
 			make(map[string]string, 0),
 			"",
+			[]string{},
 		},
 		{
 			time.Duration(15) * time.Minute,
 			make(map[string]string, 0),
 			"15m_early",
+			[]string{"sunrise", "sunset", "bedtime"},
 		}, {
 			time.Duration(15) * time.Minute,
 			make(map[string]string, 0),
 			"15m_late",
+			[]string{"sunrise", "sunset", "bedtime"},
 		},
 	}
 
