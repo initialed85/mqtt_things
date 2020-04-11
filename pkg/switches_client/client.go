@@ -166,14 +166,16 @@ type HostAndName struct {
 }
 
 type Client struct {
-	switchByName map[string]Switch
+	switchByName map[string]*Switch
 }
 
 func New(hostsAndNames []HostAndName) Client {
-	switchByName := make(map[string]Switch)
+	switchByName := make(map[string]*Switch)
 
 	for _, hostAndName := range hostsAndNames {
-		switchByName[hostAndName.Name] = NewSwitch(hostAndName.Host, hostAndName.Name)
+		s := NewSwitch(hostAndName.Host, hostAndName.Name)
+
+		switchByName[hostAndName.Name] = &s
 	}
 
 	return Client{
@@ -181,12 +183,12 @@ func New(hostsAndNames []HostAndName) Client {
 	}
 }
 
-func (c *Client) GetSwitches() ([]Switch, error) {
-	switches := make([]Switch, 0)
+func (c *Client) GetSwitches() ([]*Switch, error) {
+	switches := make([]*Switch, 0)
 	for _, s := range c.switchByName {
 		err := s.Update()
 		if err != nil {
-			return []Switch{}, err
+			return []*Switch{}, err
 		}
 		switches = append(switches, s)
 	}
@@ -194,10 +196,10 @@ func (c *Client) GetSwitches() ([]Switch, error) {
 	return switches, nil
 }
 
-func (c *Client) GetSwitch(name string) (Switch, error) {
+func (c *Client) GetSwitch(name string) (*Switch, error) {
 	s, ok := c.switchByName[name]
 	if !ok {
-		return Switch{}, fmt.Errorf("failed to find switch for name %v", name)
+		return nil, fmt.Errorf("failed to find switch for name %v", name)
 	}
 
 	return s, nil

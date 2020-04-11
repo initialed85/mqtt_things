@@ -129,17 +129,25 @@ func main() {
 		os.Exit(0)
 	}()
 
-	ticker := time.NewTicker(time.Millisecond * 100)
+	lastStateByName := make(map[string]aircons_client.State, 0)
 
+	ticker := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
 		case <-ticker.C:
-			aircons, err := airconsClient.GetAircons()
+			aircons, err = airconsClient.GetAircons()
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			for _, a := range aircons {
+				_, ok := lastStateByName[a.Name]
+				if !ok {
+					lastStateByName[a.Name] = a.State
+				} else if a.State == lastStateByName[a.Name] {
+					continue
+				}
+
 				err := mqttClient.Publish(
 					fmt.Sprintf("home/inside/aircons/%v/state/get", a.Name),
 					mqtt_client.ExactlyOnce,
@@ -149,6 +157,8 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
+
+				lastStateByName[a.Name] = a.State
 			}
 		}
 	}

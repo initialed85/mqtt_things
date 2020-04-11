@@ -159,7 +159,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	err = mqttClient.Subscribe(topic, mqtt_client.AtMostOnce, callback)
+	err = mqttClient.Subscribe(topic, mqtt_client.ExactlyOnce, callback)
 	if err != nil {
 		log.Fatal(err)
 	}

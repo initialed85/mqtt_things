@@ -30,14 +30,6 @@ func main() {
 		log.Fatal("host flag empty")
 	}
 
-	//if *usernamePtr == "" {
-	//	log.Fatal("username flag empty")
-	//}
-
-	//if *passwordPtr == "" {
-	//	log.Fatal("password flag empty")
-	//}
-
 	if *topicPtr == "" {
 		log.Fatal("topic flag empty")
 	}
@@ -65,7 +57,7 @@ func main() {
 			log.Fatal("message flag empty")
 		}
 
-		err = mqttClient.Publish(*topicPtr, mqtt_client.AtMostOnce, false, *payloadPtr)
+		err = mqttClient.Publish(*topicPtr, mqtt_client.ExactlyOnce, false, *payloadPtr)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -76,7 +68,7 @@ func main() {
 			log.Printf("%+v\n", message)
 		}
 
-		err = mqttClient.Subscribe(*topicPtr, mqtt_client.AtMostOnce, callback)
+		err = mqttClient.Subscribe(*topicPtr, mqtt_client.ExactlyOnce, callback)
 		if err != nil {
 			log.Fatal(err)
 		}

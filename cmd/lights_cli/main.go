@@ -90,8 +90,9 @@ func main() {
 		os.Exit(0)
 	}()
 
-	ticker := time.NewTicker(time.Millisecond * 100)
+	lastStateByName := make(map[string]lights_client.State, 0)
 
+	ticker := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
 		case <-ticker.C:
@@ -100,16 +101,25 @@ func main() {
 				log.Fatal(err)
 			}
 
-			for _, light := range lights {
+			for _, l := range lights {
+				_, ok := lastStateByName[l.Name]
+				if !ok {
+					lastStateByName[l.Name] = l.State
+				} else if l.State == lastStateByName[l.Name] {
+					continue
+				}
+
 				err := mqttClient.Publish(
-					fmt.Sprintf("home/inside/lights/globe/%v/state/get", light.Name),
+					fmt.Sprintf("home/inside/lights/globe/%v/state/get", l.Name),
 					mqtt_client.ExactlyOnce,
 					true,
-					fmt.Sprintf("%v", light.State),
+					fmt.Sprintf("%v", l.State),
 				)
 				if err != nil {
 					log.Fatal(err)
 				}
+
+				lastStateByName[l.Name] = l.State
 			}
 		}
 	}

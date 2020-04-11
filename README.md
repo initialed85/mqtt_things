@@ -48,6 +48,23 @@ I'll speak to the top level commands:
         - `home/outside/weather/wind-direction/get`
         - `home/outside/weather/sunrise/get`
         - `home/outside/weather/sunset/get`
+- `circumstances_cli`
+    - Is advised of some arguments (regarding bed time and temperature brackets)
+    - Listens to the following topics from `weather_cli`
+        - `home/outside/weather/temperature/get`
+        - `home/outside/weather/sunrise/get`
+        - `home/outside/weather/sunset/get`
+    - Determines some circumstances based on that data and the current time
+    - Writes to the following topics (assuming prefix of `home/circumstances`)
+        - `home/circumstances/before_sunrise/get`
+        - `home/circumstances/after_sunrise/get`
+        - `home/circumstances/before_sunset/get`
+        - `home/circumstances/after_sunset/get`
+        - `home/circumstances/before_bedtime/get`
+        - `home/circumstances/after_bedtime/get`
+        - `home/circumstances/hot/get`
+        - `home/circumstances/comfortable/get`
+        - `home/circumstances/cold/get`
 
 ## How do I build it?
 
@@ -78,3 +95,8 @@ Here's a dump of all of the command lines as I'm using them around my house (wit
 - 192.168.137.252 = Philips Hue bridge
 - /dev/ttyACM0 = USB serial port exposed by Arduino (when plugged into a Raspberry Pi)
 - 192.168.137.15 = Powertech smart plug
+
+## TODO
+
+- Consider fixing implicit behaviour in light naming ("Some Lights" = "some-lights" and vice versa)
+- Consider fixing failure to DRY throughout the *_cli.go files
