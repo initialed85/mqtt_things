@@ -8,13 +8,9 @@ import (
 )
 
 type Circumstances struct {
-	Timestamp                                                                           time.Time
-	BeforeSunrise, AfterSunrise, BeforeSunset, AfterSunset, BeforeBedtime, AfterBedtime bool
-	Hot, Comfortable, Cold                                                              bool
-}
-
-func getTime(timestamp string) (time.Time, error) {
-	return time.Parse("15:04:05", timestamp)
+	Timestamp                                                                                                          time.Time
+	BeforeSunrise, AfterSunrise, BeforeSunset, AfterSunset, BeforeBedtime, AfterBedtime, BeforeWaketime, AfterWaketime bool
+	Hot, Comfortable, Cold                                                                                             bool
 }
 
 func recreateForNow(timestamp, now time.Time) time.Time {
@@ -29,15 +25,24 @@ func recreateForNow(timestamp, now time.Time) time.Time {
 	return recreated
 }
 
-func CalculateCircumstances(now, sunrise, sunset, bedtime time.Time, temperature, hotEntry, hotExit, coldEntry, coldExit float64, offset time.Duration) Circumstances {
-	var beforeSunrise, afterSunrise, beforeSunset, afterSunset, beforeBedtime, afterBedtime, hot, comfortable, cold bool
+func CalculateCircumstances(
+	now, sunrise, sunset, bedtime, waketime time.Time,
+	temperature, hotEntry, hotExit, coldEntry, coldExit float64,
+	offset time.Duration,
+) Circumstances {
+	var (
+		beforeSunrise, afterSunrise, beforeSunset, afterSunset,
+		beforeBedtime, afterBedtime, beforeWaketime, afterWaketime,
+		hot, comfortable, cold bool
+	)
 
 	log.Printf(
-		"getting circumstances for %v, %v, %v, %v, %v, %v, %v, %v, %v, %v",
+		"getting circumstances for %v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v",
 		now,
 		sunrise,
 		sunset,
 		bedtime,
+		waketime,
 		temperature,
 		hotEntry,
 		hotExit,
@@ -46,40 +51,32 @@ func CalculateCircumstances(now, sunrise, sunset, bedtime time.Time, temperature
 		offset,
 	)
 
-	midnight, _ := getTime("00:00:00")
-	midnight = recreateForNow(midnight, now)
+	log.Printf("now is %v", now)
 
-	midday, _ := getTime("12:00:00")
-	midday = recreateForNow(midday, now)
+	sunrise = recreateForNow(sunrise, now)
+	sunset = recreateForNow(sunset, now)
+	bedtime = recreateForNow(bedtime, now)
+	waketime = recreateForNow(waketime, now)
 
-	afterMidnight := now.After(midnight.Add(-offset)) && now.Before(midday.Add(-offset))
-	log.Printf("afterMidnight is %v", afterMidnight)
+	log.Printf("sunrise is %v", sunrise)
+	log.Printf("sunset is %v", sunset)
+	log.Printf("bedtime is %v", bedtime)
 
-	if afterMidnight {
-		sunrise = recreateForNow(sunrise, now)
-		sunset = recreateForNow(sunset, now).Add(-time.Hour * 24)
-		bedtime = recreateForNow(bedtime, now).Add(-time.Hour * 24)
-	} else {
-		sunrise = recreateForNow(sunrise, now).Add(time.Hour * 24)
-		sunset = recreateForNow(sunset, now)
-		bedtime = recreateForNow(bedtime, now)
+	if now.Before(sunrise.Add(-offset)) || now.After(sunset.Add(-offset)) {
+		beforeSunrise = true
 	}
 
-	log.Printf(
-		"sunrise %v, sunset %v, bedtime %v",
-		sunrise,
-		sunset,
-		bedtime,
-	)
+	if now.Before(waketime.Add(-offset)) || now.After(bedtime.Add(-offset)) {
+		beforeWaketime = true
+	}
 
-	beforeSunrise = now.Before(sunrise.Add(-offset))
-	afterSunrise = now.After(sunrise.Add(-offset))
+	beforeSunset = !beforeSunrise
+	beforeBedtime = !beforeWaketime
 
-	beforeSunset = now.Before(sunset.Add(-offset))
-	afterSunset = now.After(sunset.Add(-offset))
-
-	beforeBedtime = now.Before(bedtime.Add(-offset))
-	afterBedtime = now.After(bedtime.Add(-offset))
+	afterSunrise = !beforeSunrise
+	afterSunset = !beforeSunset
+	afterWaketime = !beforeWaketime
+	afterBedtime = !beforeBedtime
 
 	cold = temperature <= coldEntry
 	comfortable = temperature >= coldExit && temperature <= hotExit
@@ -93,6 +90,7 @@ func CalculateCircumstances(now, sunrise, sunset, bedtime time.Time, temperature
 		AfterSunset:   afterSunset,
 		BeforeBedtime: beforeBedtime,
 		AfterBedtime:  afterBedtime,
+		AfterWaketime: afterWaketime,
 		Hot:           hot,
 		Comfortable:   comfortable,
 		Cold:          cold,
@@ -129,6 +127,8 @@ func GetTopicsAndCircumstances(circumstances Circumstances, prefix, suffix strin
 		{fmt.Sprintf("%v/after_sunset%v/get", prefix, suffix), convertCircumstance(circumstances.AfterSunset)},
 		{fmt.Sprintf("%v/before_bedtime%v/get", prefix, suffix), convertCircumstance(circumstances.BeforeBedtime)},
 		{fmt.Sprintf("%v/after_bedtime%v/get", prefix, suffix), convertCircumstance(circumstances.AfterBedtime)},
+		{fmt.Sprintf("%v/before_waketime%v/get", prefix, suffix), convertCircumstance(circumstances.BeforeWaketime)},
+		{fmt.Sprintf("%v/after_waketime%v/get", prefix, suffix), convertCircumstance(circumstances.AfterWaketime)},
 		{fmt.Sprintf("%v/hot%v/get", prefix, suffix), convertCircumstance(circumstances.Hot)},
 		{fmt.Sprintf("%v/comfortable%v/get", prefix, suffix), convertCircumstance(circumstances.Comfortable)},
 		{fmt.Sprintf("%v/cold%v/get", prefix, suffix), convertCircumstance(circumstances.Cold)},

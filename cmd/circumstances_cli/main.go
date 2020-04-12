@@ -50,7 +50,11 @@ func parseTimestamp(payload string) (time.Time, error) {
 
 	return time.Parse(
 		"2006-01-02 15:04:05 MST",
-		fmt.Sprintf("%v %v", timestampUtc, time.Now().Format("MST")),
+		fmt.Sprintf(
+			"%v %v",
+			timestampUtc.Format("2006-01-02 15:04:05"),
+			time.Now().Format("MST"),
+		),
 	)
 }
 
@@ -94,6 +98,7 @@ func main() {
 	usernamePtr := flag.String("username", "", "mqtt username (optional)")
 	passwordPtr := flag.String("password", "", "mqtt password (optional)")
 	bedtimePtr := flag.String("bedtime", "22:00:00", "bedtime HH:MM:SS (optional, default 22:00:00)")
+	waketimePtr := flag.String("waketime", "06:00:00", "bedtime HH:MM:SS (optional, default 06:00:00)")
 	hotEntryPtr := flag.Float64("hotEntry", 29, "hot entry deg C (optional, default 29)")
 	hotExitPtr := flag.Float64("hotExit", 27, "hot exit deg C (optional, default 27)")
 	coldEntryPtr := flag.Float64("coldEntry", 12, "cold entry deg C (optional, default 12)")
@@ -110,6 +115,11 @@ func main() {
 	_, err := parseNowForHoursMinutesSeconds(*bedtimePtr)
 	if err != nil {
 		log.Fatalf("failed to parse HH:MM:SS fom '%v'", *bedtimePtr)
+	}
+
+	_, err = parseNowForHoursMinutesSeconds(*waketimePtr)
+	if err != nil {
+		log.Fatalf("failed to parse HH:MM:SS fom '%v'", *waketimePtr)
 	}
 
 	mqttClient := mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
@@ -153,12 +163,12 @@ func main() {
 			time.Duration(15) * time.Minute,
 			make(map[string]string, 0),
 			"15m_early",
-			[]string{"sunrise", "sunset", "bedtime"},
+			[]string{"sunrise", "sunset", "bedtime", "waketime"},
 		}, {
 			time.Duration(15) * time.Minute,
 			make(map[string]string, 0),
 			"15m_late",
-			[]string{"sunrise", "sunset", "bedtime"},
+			[]string{"sunrise", "sunset", "bedtime", "waketime"},
 		},
 	}
 
@@ -177,12 +187,18 @@ func main() {
 				log.Fatal(err)
 			}
 
+			waketime, err := parseNowForHoursMinutesSeconds(*waketimePtr)
+			if err != nil {
+				log.Fatal(err)
+			}
+
 			for _, config := range configs {
 				circumstances := circumstances_engine.CalculateCircumstances(
 					time.Now(),
 					sunrise,
 					sunset,
 					bedtime,
+					waketime,
 					temperature,
 					*hotEntryPtr,
 					*hotExitPtr,
