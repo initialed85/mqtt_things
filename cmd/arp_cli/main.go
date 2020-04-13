@@ -210,6 +210,8 @@ func expire() {
 				timeout := lastSeen.Add(timeoutDuration)
 				if timeout.Before(now) {
 					lastStateByIP[ip] = "0"
+
+					log.Printf("%v last seen at %v, expiring due to %v of silence", ip, lastSeen, timeoutDuration)
 				}
 			}
 		}
@@ -222,6 +224,8 @@ func publish() {
 		select {
 		case <-ticker.C:
 			for ip, state := range lastStateByIP {
+				log.Printf("publishing %v state for %v", state, ip)
+
 				err := mqttClient.Publish(
 					fmt.Sprintf("%v/%v/get", topicPrefix, ip),
 					mqtt_client.ExactlyOnce,
@@ -248,7 +252,7 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 
 	if *hostPtr == "" {
-		log.Fatal("host flag empty")
+		log.Fatal("no -host flag specified")
 	}
 
 	if *interfaceName == "" {
@@ -297,6 +301,7 @@ func main() {
 	go func() {
 		<-c
 		for _, ip := range arpIPs {
+			log.Printf("publishing shutdown state for %v", ip)
 			err := mqttClient.Publish(
 				fmt.Sprintf("%v/%v/get", topicPrefix, ip),
 				mqtt_client.ExactlyOnce,

@@ -49,7 +49,7 @@ I'll speak to the top level commands:
         - `home/outside/weather/sunrise/get`
         - `home/outside/weather/sunset/get`
 - `circumstances_cli`
-    - Is advised of some arguments (regarding bed time and temperature brackets)
+    - given bed time, wake time and temperature brackets as arguments
     - Listens to the following topics from `weather_cli`
         - `home/outside/weather/temperature/get`
         - `home/outside/weather/sunrise/get`
@@ -65,6 +65,11 @@ I'll speak to the top level commands:
         - `home/circumstances/hot/get`
         - `home/circumstances/comfortable/get`
         - `home/circumstances/cold/get`
+- `arp_cil`
+    - Given some IP addresses as arguments
+    - ARPs for those IP addresses with a 10 second timeout
+    - Writes to `home/arp/(IP address)`
+    - NOTE: only works on your local network (because ARP is layer 2); can be used to determine if a host is online or offline (e.g. your phone)
 
 ## How do I build it?
 
