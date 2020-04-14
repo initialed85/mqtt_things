@@ -165,7 +165,7 @@ func main() {
 			"15m_early",
 			[]string{"sunrise", "sunset", "bedtime", "waketime"},
 		}, {
-			time.Duration(15) * time.Minute,
+			-time.Duration(15) * time.Minute,
 			make(map[string]string, 0),
 			"15m_late",
 			[]string{"sunrise", "sunset", "bedtime", "waketime"},
