@@ -56,12 +56,18 @@ I'll speak to the top level commands:
         - `home/outside/weather/sunset/get`
     - Determines some circumstances based on that data and the current time
     - Writes to the following topics (assuming prefix of `home/circumstances`)
-        - `home/circumstances/before_sunrise/get`
         - `home/circumstances/after_sunrise/get`
-        - `home/circumstances/before_sunset/get`
         - `home/circumstances/after_sunset/get`
-        - `home/circumstances/before_bedtime/get`
         - `home/circumstances/after_bedtime/get`
+        - `home/circumstances/after_waketime/get`
+        - `home/circumstances/after_sunrise_15m_before/get`
+        - `home/circumstances/after_sunset_15m_before/get`
+        - `home/circumstances/after_bedtime_15m_before/get`
+        - `home/circumstances/after_waketime_15m_before/get`
+        - `home/circumstances/after_sunrise_15m_after/get`
+        - `home/circumstances/after_sunset_15m_after/get`
+        - `home/circumstances/after_bedtime_15m_after/get`
+        - `home/circumstances/after_waketime_15m_after/get`
         - `home/circumstances/hot/get`
         - `home/circumstances/comfortable/get`
         - `home/circumstances/cold/get`
