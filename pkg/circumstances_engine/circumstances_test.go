@@ -28,11 +28,8 @@ func TestCalculateCircumstances_Times(t *testing.T) {
 		getTimeForTesting("1991-02-06 06:00:00"),
 		23, 29, 27, 10, 12, time.Duration(15)*time.Minute,
 	)
-	assert.Equal(t, true, circumstances.BeforeSunrise)
 	assert.Equal(t, false, circumstances.AfterSunrise)
-	assert.Equal(t, false, circumstances.BeforeSunset)
 	assert.Equal(t, true, circumstances.AfterSunset)
-	assert.Equal(t, false, circumstances.BeforeBedtime)
 	assert.Equal(t, true, circumstances.AfterBedtime)
 
 	// sunrise/sunset has updated now
@@ -44,11 +41,8 @@ func TestCalculateCircumstances_Times(t *testing.T) {
 		getTimeForTesting("1991-02-06 06:00:00"),
 		23, 29, 27, 10, 12, time.Duration(15)*time.Minute,
 	)
-	assert.Equal(t, true, circumstances.BeforeSunrise)
 	assert.Equal(t, false, circumstances.AfterSunrise)
-	assert.Equal(t, false, circumstances.BeforeSunset)
 	assert.Equal(t, true, circumstances.AfterSunset)
-	assert.Equal(t, false, circumstances.BeforeBedtime)
 	assert.Equal(t, true, circumstances.AfterBedtime)
 
 	// clearly after sunrise
@@ -58,13 +52,10 @@ func TestCalculateCircumstances_Times(t *testing.T) {
 		getTimeForTesting("1991-02-06 18:00:00"),
 		getTimeForTesting("1991-02-06 22:00:00"),
 		getTimeForTesting("1991-02-06 06:00:00"),
-		23, 29, 27, 10, 12, time.Duration(15)*time.Minute,
+		23, 29, 27, 10, 12, time.Duration(0),
 	)
-	assert.Equal(t, false, circumstances.BeforeSunrise)
 	assert.Equal(t, true, circumstances.AfterSunrise)
-	assert.Equal(t, true, circumstances.BeforeSunset)
 	assert.Equal(t, false, circumstances.AfterSunset)
-	assert.Equal(t, true, circumstances.BeforeBedtime)
 	assert.Equal(t, false, circumstances.AfterBedtime)
 
 	// clearly after sunrise
@@ -74,13 +65,10 @@ func TestCalculateCircumstances_Times(t *testing.T) {
 		getTimeForTesting("1991-02-06 18:00:00"),
 		getTimeForTesting("1991-02-06 22:00:00"),
 		getTimeForTesting("1991-02-06 06:00:00"),
-		23, 29, 27, 10, 12, time.Duration(15)*time.Minute,
+		23, 29, 27, 10, 12, time.Duration(0),
 	)
-	assert.Equal(t, false, circumstances.BeforeSunrise)
 	assert.Equal(t, true, circumstances.AfterSunrise)
-	assert.Equal(t, true, circumstances.BeforeSunset)
 	assert.Equal(t, false, circumstances.AfterSunset)
-	assert.Equal(t, true, circumstances.BeforeBedtime)
 	assert.Equal(t, false, circumstances.AfterBedtime)
 
 	// clearly before sunset
@@ -90,13 +78,10 @@ func TestCalculateCircumstances_Times(t *testing.T) {
 		getTimeForTesting("1991-02-06 18:00:00"),
 		getTimeForTesting("1991-02-06 22:00:00"),
 		getTimeForTesting("1991-02-06 06:00:00"),
-		23, 29, 27, 10, 12, time.Duration(15)*time.Minute,
+		23, 29, 27, 10, 12, time.Duration(0),
 	)
-	assert.Equal(t, false, circumstances.BeforeSunrise)
 	assert.Equal(t, true, circumstances.AfterSunrise)
-	assert.Equal(t, true, circumstances.BeforeSunset)
 	assert.Equal(t, false, circumstances.AfterSunset)
-	assert.Equal(t, true, circumstances.BeforeBedtime)
 	assert.Equal(t, false, circumstances.AfterBedtime)
 
 	// clearly after sunset
@@ -106,11 +91,11 @@ func TestCalculateCircumstances_Times(t *testing.T) {
 		getTimeForTesting("1991-02-06 18:00:00"),
 		getTimeForTesting("1991-02-06 22:00:00"),
 		getTimeForTesting("1991-02-06 06:00:00"),
-		23, 29, 27, 10, 12, time.Duration(15)*time.Minute,
+		23, 29, 27, 10, 12, time.Duration(0),
 	)
-	assert.Equal(t, true, circumstances.BeforeSunrise)
-	assert.Equal(t, false, circumstances.BeforeSunset)
-	assert.Equal(t, true, circumstances.BeforeBedtime)
+	assert.Equal(t, false, circumstances.AfterSunrise)
+	assert.Equal(t, true, circumstances.AfterSunset)
+	assert.Equal(t, false, circumstances.AfterBedtime)
 
 	// clearly after bedtime
 	circumstances = CalculateCircumstances(
@@ -119,13 +104,10 @@ func TestCalculateCircumstances_Times(t *testing.T) {
 		getTimeForTesting("1991-02-06 18:00:00"),
 		getTimeForTesting("1991-02-06 22:00:00"),
 		getTimeForTesting("1991-02-06 06:00:00"),
-		23, 29, 27, 10, 12, time.Duration(15)*time.Minute,
+		23, 29, 27, 10, 12, time.Duration(0),
 	)
-	assert.Equal(t, true, circumstances.BeforeSunrise)
 	assert.Equal(t, false, circumstances.AfterSunrise)
-	assert.Equal(t, false, circumstances.BeforeSunset)
 	assert.Equal(t, true, circumstances.AfterSunset)
-	assert.Equal(t, false, circumstances.BeforeBedtime)
 	assert.Equal(t, true, circumstances.AfterBedtime)
 }
 
@@ -134,7 +116,7 @@ func TestCalculateCircumstances_Offset(t *testing.T) {
 
 	// before sunrise with offset
 	circumstances = CalculateCircumstances(
-		getTimeForTesting("1991-02-06 05:44:00"),
+		getTimeForTesting("1991-02-06 06:14:00"),
 		getTimeForTesting("1991-02-06 06:00:00"),
 		getTimeForTesting("1991-02-06 18:00:00"),
 		getTimeForTesting("1991-02-06 22:00:00"),
@@ -146,11 +128,11 @@ func TestCalculateCircumstances_Offset(t *testing.T) {
 		12,
 		time.Duration(15)*time.Minute,
 	)
-	assert.Equal(t, true, circumstances.BeforeSunrise)
+	assert.Equal(t, false, circumstances.AfterSunrise)
 
 	// after sunrise with offset
 	circumstances = CalculateCircumstances(
-		getTimeForTesting("1991-02-06 05:46:00"),
+		getTimeForTesting("1991-02-06 06:16:00"),
 		getTimeForTesting("1991-02-06 06:00:00"),
 		getTimeForTesting("1991-02-06 18:00:00"),
 		getTimeForTesting("1991-02-06 22:00:00"),
@@ -162,7 +144,7 @@ func TestCalculateCircumstances_Offset(t *testing.T) {
 		12,
 		time.Duration(15)*time.Minute,
 	)
-	assert.Equal(t, false, circumstances.BeforeSunrise)
+	assert.Equal(t, true, circumstances.AfterSunrise)
 }
 
 func TestCalculateCircumstances_Temperature(t *testing.T) {
@@ -226,10 +208,6 @@ func TestCalculateCircumstances_Temperature(t *testing.T) {
 func TestGetTopicsAndCircumstances(t *testing.T) {
 	circumstances := Circumstances{
 		time.Now(),
-		true,
-		false,
-		false,
-		true,
 		false,
 		true,
 		true,
@@ -241,13 +219,9 @@ func TestGetTopicsAndCircumstances(t *testing.T) {
 
 	assert.Equal(t,
 		[]TopicAndCircumstance{
-			{Topic: "home/circumstances/before_sunrise_15m_later/get", Circumstance: "1"},
 			{Topic: "home/circumstances/after_sunrise_15m_later/get", Circumstance: "0"},
-			{Topic: "home/circumstances/before_sunset_15m_later/get", Circumstance: "0"},
 			{Topic: "home/circumstances/after_sunset_15m_later/get", Circumstance: "1"},
-			{Topic: "home/circumstances/before_bedtime_15m_later/get", Circumstance: "0"},
 			{Topic: "home/circumstances/after_bedtime_15m_later/get", Circumstance: "1"},
-			{Topic: "home/circumstances/before_waketime_15m_later/get", Circumstance: "1"},
 			{Topic: "home/circumstances/after_waketime_15m_later/get", Circumstance: "0"},
 			{Topic: "home/circumstances/hot_15m_later/get", Circumstance: "1"},
 			{Topic: "home/circumstances/comfortable_15m_later/get", Circumstance: "0"},

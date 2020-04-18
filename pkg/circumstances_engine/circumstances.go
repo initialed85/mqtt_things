@@ -8,9 +8,9 @@ import (
 )
 
 type Circumstances struct {
-	Timestamp                                                                                                          time.Time
-	BeforeSunrise, AfterSunrise, BeforeSunset, AfterSunset, BeforeBedtime, AfterBedtime, BeforeWaketime, AfterWaketime bool
-	Hot, Comfortable, Cold                                                                                             bool
+	Timestamp                                              time.Time
+	AfterSunrise, AfterSunset, AfterBedtime, AfterWaketime bool
+	Hot, Comfortable, Cold                                 bool
 }
 
 func recreateForNow(timestamp, now time.Time) time.Time {
@@ -31,8 +31,8 @@ func CalculateCircumstances(
 	offset time.Duration,
 ) Circumstances {
 	var (
-		beforeSunrise, afterSunrise, beforeSunset, afterSunset,
-		beforeBedtime, afterBedtime, beforeWaketime, afterWaketime,
+		afterSunrise, afterSunset,
+		afterBedtime, afterWaketime,
 		hot, comfortable, cold bool
 	)
 
@@ -51,32 +51,37 @@ func CalculateCircumstances(
 		offset,
 	)
 
-	log.Printf("now is %v", now)
+	sunrise = recreateForNow(sunrise.Add(offset), now)
+	sunset = recreateForNow(sunset.Add(offset), now)
+	bedtime = recreateForNow(bedtime.Add(offset), now)
+	waketime = recreateForNow(waketime.Add(offset), now)
 
-	sunrise = recreateForNow(sunrise, now)
-	sunset = recreateForNow(sunset, now)
-	bedtime = recreateForNow(bedtime, now)
-	waketime = recreateForNow(waketime, now)
+	log.Printf("recreated sunrise is %v", sunrise)
+	log.Printf("recreated sunset is %v", sunset)
+	log.Printf("recreated bedtime is %v", bedtime)
+	log.Printf("recreated waketime is %v", waketime)
 
-	log.Printf("sunrise is %v", sunrise)
-	log.Printf("sunset is %v", sunset)
-	log.Printf("bedtime is %v", bedtime)
-
-	if now.Before(sunrise.Add(-offset)) || now.After(sunset.Add(-offset)) {
-		beforeSunrise = true
+	if now.After(sunset) {
+		afterSunrise = false
+		afterSunset = true
+	} else if now.After(sunrise) {
+		afterSunrise = true
+		afterSunset = false
+	} else {
+		afterSunrise = false
+		afterSunset = true
 	}
 
-	if now.Before(waketime.Add(-offset)) || now.After(bedtime.Add(-offset)) {
-		beforeWaketime = true
+	if now.After(bedtime) {
+		afterWaketime = false
+		afterBedtime = true
+	} else if now.After(waketime) {
+		afterWaketime = true
+		afterBedtime = false
+	} else {
+		afterWaketime = false
+		afterBedtime = true
 	}
-
-	beforeSunset = !beforeSunrise
-	beforeBedtime = !beforeWaketime
-
-	afterSunrise = !beforeSunrise
-	afterSunset = !beforeSunset
-	afterWaketime = !beforeWaketime
-	afterBedtime = !beforeBedtime
 
 	cold = temperature <= coldEntry
 	comfortable = temperature >= coldExit && temperature <= hotExit
@@ -84,11 +89,8 @@ func CalculateCircumstances(
 
 	circumstances := Circumstances{
 		Timestamp:     now,
-		BeforeSunrise: beforeSunrise,
 		AfterSunrise:  afterSunrise,
-		BeforeSunset:  beforeSunset,
 		AfterSunset:   afterSunset,
-		BeforeBedtime: beforeBedtime,
 		AfterBedtime:  afterBedtime,
 		AfterWaketime: afterWaketime,
 		Hot:           hot,
@@ -121,13 +123,9 @@ func GetTopicsAndCircumstances(circumstances Circumstances, prefix, suffix strin
 	}
 
 	return []TopicAndCircumstance{
-		{fmt.Sprintf("%v/before_sunrise%v/get", prefix, suffix), convertCircumstance(circumstances.BeforeSunrise)},
 		{fmt.Sprintf("%v/after_sunrise%v/get", prefix, suffix), convertCircumstance(circumstances.AfterSunrise)},
-		{fmt.Sprintf("%v/before_sunset%v/get", prefix, suffix), convertCircumstance(circumstances.BeforeSunset)},
 		{fmt.Sprintf("%v/after_sunset%v/get", prefix, suffix), convertCircumstance(circumstances.AfterSunset)},
-		{fmt.Sprintf("%v/before_bedtime%v/get", prefix, suffix), convertCircumstance(circumstances.BeforeBedtime)},
 		{fmt.Sprintf("%v/after_bedtime%v/get", prefix, suffix), convertCircumstance(circumstances.AfterBedtime)},
-		{fmt.Sprintf("%v/before_waketime%v/get", prefix, suffix), convertCircumstance(circumstances.BeforeWaketime)},
 		{fmt.Sprintf("%v/after_waketime%v/get", prefix, suffix), convertCircumstance(circumstances.AfterWaketime)},
 		{fmt.Sprintf("%v/hot%v/get", prefix, suffix), convertCircumstance(circumstances.Hot)},
 		{fmt.Sprintf("%v/comfortable%v/get", prefix, suffix), convertCircumstance(circumstances.Comfortable)},
