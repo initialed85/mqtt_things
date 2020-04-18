@@ -60,14 +60,14 @@ I'll speak to the top level commands:
         - `home/circumstances/after_sunset/get`
         - `home/circumstances/after_bedtime/get`
         - `home/circumstances/after_waketime/get`
-        - `home/circumstances/after_sunrise_15m_before/get`
-        - `home/circumstances/after_sunset_15m_before/get`
-        - `home/circumstances/after_bedtime_15m_before/get`
-        - `home/circumstances/after_waketime_15m_before/get`
-        - `home/circumstances/after_sunrise_15m_after/get`
-        - `home/circumstances/after_sunset_15m_after/get`
-        - `home/circumstances/after_bedtime_15m_after/get`
-        - `home/circumstances/after_waketime_15m_after/get`
+        - `home/circumstances/after_sunrise_15m_early/get`
+        - `home/circumstances/after_sunset_15m_early/get`
+        - `home/circumstances/after_bedtime_15m_early/get`
+        - `home/circumstances/after_waketime_15m_early/get`
+        - `home/circumstances/after_sunrise_15m_late/get`
+        - `home/circumstances/after_sunset_15m_late/get`
+        - `home/circumstances/after_bedtime_15m_late/get`
+        - `home/circumstances/after_waketime_15m_late/get`
         - `home/circumstances/hot/get`
         - `home/circumstances/comfortable/get`
         - `home/circumstances/cold/get`
