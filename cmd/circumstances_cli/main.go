@@ -208,12 +208,12 @@ func main() {
 				)
 
 				for _, circumstanceAndTopic := range circumstances_engine.GetTopicsAndCircumstances(circumstances, prefix, config.suffix) {
-					_, ok := config.lastCircumstancesByTopic[circumstanceAndTopic.Topic]
-					if !ok {
-						config.lastCircumstancesByTopic[circumstanceAndTopic.Topic] = circumstanceAndTopic.Circumstance
-					} else if circumstanceAndTopic.Circumstance == config.lastCircumstancesByTopic[circumstanceAndTopic.Topic] {
-						continue
-					}
+					// _, ok := config.lastCircumstancesByTopic[circumstanceAndTopic.Topic]
+					// if !ok {
+					// 	config.lastCircumstancesByTopic[circumstanceAndTopic.Topic] = circumstanceAndTopic.Circumstance
+					// } else if circumstanceAndTopic.Circumstance == config.lastCircumstancesByTopic[circumstanceAndTopic.Topic] {
+					// 	continue
+					// }
 
 					err = mqttClient.Publish(
 						circumstanceAndTopic.Topic,
@@ -227,7 +227,7 @@ func main() {
 
 					log.Printf("published %v to %v", circumstanceAndTopic.Circumstance, circumstanceAndTopic.Topic)
 
-					config.lastCircumstancesByTopic[circumstanceAndTopic.Topic] = circumstanceAndTopic.Circumstance
+					// config.lastCircumstancesByTopic[circumstanceAndTopic.Topic] = circumstanceAndTopic.Circumstance
 				}
 			}
 		}
