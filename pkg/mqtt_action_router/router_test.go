@@ -57,7 +57,7 @@ func callback2(message mqtt_client.Message) {
 	lastPayload2 = message.Payload
 }
 
-func setupActionTest(state State) action {
+func setupActionTest(state State) *action {
 	actuatableThing1.Index = 0
 	actuatableThing1.IsOn = false
 
@@ -86,7 +86,7 @@ func setupActionTest(state State) action {
 	)
 }
 
-func teardownActionTest(action action) {
+func teardownActionTest(action *action) {
 	err := action.client.Disconnect()
 	if err != nil {
 		log.Fatal(err)
@@ -273,7 +273,7 @@ func TestAction_Teardown_On(t *testing.T) {
 	teardownActionTest(action)
 }
 
-func setupActionRouterTest() Router {
+func setupActionRouterTest() *Router {
 	actuatableThing1.Index = 0
 	actuatableThing1.IsOn = false
 
@@ -305,7 +305,7 @@ func setupActionRouterTest() Router {
 	)
 }
 
-func teardownActionRouterTest(actionRouter Router) {
+func teardownActionRouterTest(actionRouter *Router) {
 	err := actionRouter.client.Disconnect()
 	if err != nil {
 		log.Fatal(err)

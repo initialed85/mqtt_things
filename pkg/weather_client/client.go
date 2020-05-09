@@ -39,14 +39,14 @@ const Kelvin = 273.15
 
 var TestMode = false
 var TestURL string
-var NetClient = &http.Client{
+var HTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
 func enableTestMode(client *http.Client, url string) {
 	TestMode = true
 	TestURL = url
-	NetClient = client
+	HTTPClient = client
 }
 
 func getWeather(lat, lon float64, appID string) (Result, error) {
@@ -65,7 +65,7 @@ func getWeather(lat, lon float64, appID string) (Result, error) {
 		url = TestURL
 	}
 
-	resp, err := NetClient.Get(url)
+	resp, err := HTTPClient.Get(url)
 	if err != nil {
 		return weather, err
 	}

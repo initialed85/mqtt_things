@@ -124,10 +124,13 @@ func TestNew(t *testing.T) {
 
 	assert.Equal(
 		t,
-		[]Switch{
-			{Name: "tuya_1", State: 0, host: "192.168.137.15"},
-			{Name: "tuya_2", State: 0, host: "192.168.137.16"},
-		},
-		switches,
+		&Switch{Name: "tuya_1", State: 0, host: "192.168.137.15"},
+		switches[0],
+	)
+
+	assert.Equal(
+		t,
+		&Switch{Name: "tuya_2", State: 0, host: "192.168.137.16"},
+		switches[1],
 	)
 }

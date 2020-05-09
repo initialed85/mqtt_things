@@ -42,8 +42,8 @@ func parseBinaryState(payload string) (State, error) {
 	return State(state), nil
 }
 
-func newAction(setTopic string, arguments interface{}, on func(interface{}) error, off func(interface{}) error, debounce time.Duration, client mqtt_client.Client, baseState State, getTopic string) action {
-	action := action{
+func newAction(setTopic string, arguments interface{}, on func(interface{}) error, off func(interface{}) error, debounce time.Duration, client mqtt_client.Client, baseState State, getTopic string) *action {
+	action := &action{
 		setTopic:  setTopic,
 		arguments: arguments,
 		on:        on,
@@ -79,22 +79,88 @@ func (a *action) actuate(state State) error {
 		return fmt.Errorf("expected state of 0 or 1 but got %v", state)
 	}
 
+	//
+	// 4 attempts to actuate on failure
+	//
+
 	log.Printf("calling actuate with %+v", a.arguments)
-	err := actuate(a.arguments)
+	var actuateErr error
+	for i := 0; i < 4; i++ {
+		actuateErr = actuate(a.arguments)
+		if actuateErr != nil {
+			log.Printf("failed to actuate with %+v because %v; retry %v",
+				a.arguments, actuateErr, i,
+			)
 
-	go func() {
-		payload := fmt.Sprintf("%v", state)
-		log.Printf("publishing %v to %v ", payload, a.getTopic)
-		err := a.client.Publish(a.getTopic, mqtt_client.ExactlyOnce, true, payload)
-		if err != nil {
-			log.Printf("failed to publish %v to %v because %v", payload, a.getTopic, err)
+			time.Sleep(time.Second)
+
+			continue
 		}
-	}()
 
-	log.Printf("debouncing for %+v, lock will be released", a.debounce)
+		break
+	}
+
+	if actuateErr != nil {
+		log.Printf("all attempts to actuate failed; giving up")
+
+		return actuateErr
+	}
+
+	//
+	// 4 attempts to publish on failure
+	//
+
+	payload := fmt.Sprintf("%v", state)
+	log.Printf("publishing %v to %v ", payload, a.getTopic)
+	var publishErr error
+	for i := 0; i < 4; i++ {
+		publishErr = a.client.Publish(a.getTopic, mqtt_client.ExactlyOnce, true, payload)
+		if publishErr != nil {
+			log.Printf("failed to publish %v to %q becuase %v; retry %v",
+				payload, a.getTopic, publishErr, i,
+			)
+
+			//
+			// 4 attempts to reset mqtt client on failure
+			//
+
+			var connectErr error
+			for j := 0; j < 4; j++ {
+				_ = a.client.Disconnect()
+
+				connectErr = a.client.Connect()
+				if connectErr != nil {
+					log.Printf("failed to connect because %v; retry %v", connectErr, j)
+					time.Sleep(time.Second)
+					continue
+				}
+
+			}
+
+			if connectErr != nil {
+				publishErr = fmt.Errorf("failed to publish because %v", connectErr)
+
+				break
+			}
+
+			time.Sleep(time.Second)
+
+			continue
+		}
+
+		break
+	}
+
+	if publishErr != nil {
+		log.Printf("all attempts to publish failed; giving up")
+
+		return publishErr
+	}
+
+	log.Printf("actuated and published, debouncing for %+v, lock will be released", a.debounce)
 	time.Sleep(a.debounce)
 
-	return err
+	return nil
 }
 
 func (a *action) setup() error {
@@ -152,23 +218,23 @@ func (a *action) teardown() error {
 type Router struct {
 	client          mqtt_client.Client
 	debounce        time.Duration
-	actions         map[string]action
+	actions         map[string]*action
 	actionsMapMutex sync.Mutex
 	actionsMutex    sync.Mutex
 	useActionsMutex bool
 }
 
-func New(client mqtt_client.Client, debounce time.Duration, allowConcurrentActions bool) Router {
+func New(client mqtt_client.Client, debounce time.Duration, allowConcurrentActions bool) *Router {
 	router := Router{
 		client:          client,
 		debounce:        debounce,
 		useActionsMutex: !allowConcurrentActions,
-		actions:         make(map[string]action),
+		actions:         make(map[string]*action),
 	}
 
-	log.Printf("created router %v", router)
+	log.Printf("created router %v", &router)
 
-	return router
+	return &router
 }
 
 func (a *Router) RemoveAction(setTopic string) error {

@@ -42,14 +42,14 @@ var codesByName = map[string]Codes{
 
 var TestMode = false
 var TestURL string
-var NetClient = &http.Client{
+var HTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
 func enableTestMode(client *http.Client, url string) {
 	TestMode = true
 	TestURL = url
-	NetClient = client
+	HTTPClient = client
 }
 
 func sendIR(host, code string) error {
@@ -65,7 +65,7 @@ func sendIR(host, code string) error {
 		url = TestURL
 	}
 
-	resp, err := NetClient.Get(url)
+	resp, err := HTTPClient.Get(url)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func NewAircon(host, name, codesName string) (Aircon, error) {
 	codes, ok := codesByName[codesName]
 	if !ok {
 		possibleCodesNames := make([]string, 0)
-		for possibleCodesName, _ := range codesByName {
+		for possibleCodesName := range codesByName {
 			possibleCodesNames = append(possibleCodesNames, possibleCodesName)
 		}
 

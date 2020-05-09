@@ -38,30 +38,30 @@ type Client struct {
 	client        mqtt.Client
 }
 
-func New(host, username, password string) (client Client) {
+func New(host, username, password string) (c Client) {
 	if TestMode {
 		host = TestHost
 	}
 
-	client.clientOptions = mqtt.NewClientOptions()
-	client.clientOptions.AddBroker(fmt.Sprintf("tcp://%v:1883", host))
-	client.clientOptions.SetUsername(username)
-	client.clientOptions.SetPassword(password)
-	client.clientOptions.SetPingTimeout(time.Second * 1)
-	client.clientOptions.SetConnectTimeout(time.Second * 5)
-	client.clientOptions.SetWriteTimeout(time.Second * 5)
-	client.clientOptions.SetAutoReconnect(true)
-	client.clientOptions.SetResumeSubs(true)
+	c.clientOptions = mqtt.NewClientOptions()
+	c.clientOptions.AddBroker(fmt.Sprintf("tcp://%v:1883", host))
+	c.clientOptions.SetUsername(username)
+	c.clientOptions.SetPassword(password)
+	c.clientOptions.SetPingTimeout(time.Second * 1)
+	c.clientOptions.SetConnectTimeout(time.Second * 5)
+	c.clientOptions.SetWriteTimeout(time.Second * 5)
+	c.clientOptions.SetAutoReconnect(true)
+	c.clientOptions.SetResumeSubs(true)
 
-	client.client = mqtt.NewClient(client.clientOptions)
+	log.Printf("created %+v", c.clientOptions)
 
-	log.Printf("created %+v", client)
-
-	return client
+	return c
 }
 
 func (c *Client) Connect() error {
 	log.Printf("connecting")
+
+	c.client = mqtt.NewClient(c.clientOptions)
 
 	c.connectToken = c.client.Connect()
 	if c.connectToken == nil {
@@ -141,6 +141,8 @@ func (c *Client) Disconnect() error {
 	}
 
 	c.client.Disconnect(1000)
+
+	c.client = nil
 
 	return nil
 }

@@ -25,14 +25,14 @@ const (
 
 var TestMode = false
 var TestURL string
-var NetClient = &http.Client{
+var HTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
 func enableTestMode(client *http.Client, url string) {
 	TestMode = true
 	TestURL = url
-	NetClient = client
+	HTTPClient = client
 }
 
 func get(url string) (string, error) {
@@ -40,7 +40,7 @@ func get(url string) (string, error) {
 		url = TestURL
 	}
 
-	resp, err := NetClient.Get(url)
+	resp, err := HTTPClient.Get(url)
 	if err != nil {
 		return "", err
 	}

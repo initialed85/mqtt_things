@@ -5,7 +5,7 @@ type Arguments struct {
 }
 
 type Actionable struct {
-	Client Client
+	Client *Client
 }
 
 func (a *Actionable) On(arguments interface{}) error {

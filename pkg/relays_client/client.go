@@ -58,8 +58,6 @@ func (tp *TestPort) Close() error {
 }
 
 func Read(port PortInterface) (string, error) {
-	log.Printf("reading from %+v", port)
-
 	buf := make([]byte, 1)
 
 	_, err := port.Read(buf)
@@ -71,7 +69,7 @@ func Read(port PortInterface) (string, error) {
 }
 
 func ReadUntil(port PortInterface, until string) (string, error) {
-	log.Printf("reading until %v from %+v", until, port)
+	log.Printf("reading until %q from %+v", until, port)
 
 	var data string
 
@@ -88,11 +86,13 @@ func ReadUntil(port PortInterface, until string) (string, error) {
 		data += s
 	}
 
+	log.Printf("read %q", data)
+
 	return data, nil
 }
 
 func Write(port PortInterface, data string) error {
-	log.Printf("writing %v to %+v", data, port)
+	log.Printf("writing %q to %+v", data, port)
 
 	_, err := port.Write([]byte(data))
 
@@ -112,8 +112,8 @@ type Client struct {
 	mu   sync.Mutex
 }
 
-func New(port string, bitRate int) (Client, error) {
-	r := Client{}
+func New(port string, bitRate int) (*Client, error) {
+	r := &Client{}
 
 	var p PortInterface
 	var err error
@@ -131,7 +131,7 @@ func New(port string, bitRate int) (Client, error) {
 	}
 
 	if err != nil {
-		return r, err
+		return nil, err
 	}
 
 	r.port = p
