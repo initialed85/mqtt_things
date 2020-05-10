@@ -20,11 +20,14 @@ function setup() {
 setup
 
 if [[ "${*}" == "" ]]; then
+  go test -v ./pkg/gmq_mqtt_client
+  go test -v ./pkg/paho_mqtt_client
+  MQTT_CLIENT_PROVIDER=gmq go test -v ./pkg/mqtt_action_router
+  MQTT_CLIENT_PROVIDER=paho go test -v ./pkg/mqtt_action_router
+
   go test -v ./pkg/aircons_client
   go test -v ./pkg/circumstances_engine
   go test -v ./pkg/lights_client
-  go test -v ./pkg/mqtt_action_router
-  go test -v ./pkg/mqtt_client
   go test -v ./pkg/relays_client
   go test -v ./pkg/switches_client
   go test -v ./pkg/weather_client

@@ -8,7 +8,9 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
+	"github.com/initialed85/mqtt_things/pkg/paho_mqtt_client"
 	"log"
 	"net"
 	"os"
@@ -53,7 +55,7 @@ const (
 
 var (
 	arpIPs        flagArrayString
-	mqttClient    mqtt_client.Client
+	mqttClient    paho_mqtt_client.Client
 	lastSeenByIP  = make(map[string]time.Time, 0)
 	lastStateByIP = make(map[string]string, 0)
 )
@@ -228,7 +230,7 @@ func publish() {
 
 				err := mqttClient.Publish(
 					fmt.Sprintf("%v/%v/get", topicPrefix, ip),
-					mqtt_client.ExactlyOnce,
+					mqtt_common.ExactlyOnce,
 					false,
 					state,
 				)
@@ -285,7 +287,8 @@ func main() {
 		break
 	}
 
-	mqttClient = mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
+
 	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -304,7 +307,7 @@ func main() {
 			log.Printf("publishing shutdown state for %v", ip)
 			err := mqttClient.Publish(
 				fmt.Sprintf("%v/%v/get", topicPrefix, ip),
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				"0",
 			)

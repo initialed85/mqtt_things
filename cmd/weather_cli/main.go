@@ -3,7 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"github.com/initialed85/mqtt_things/pkg/weather_client"
 	"log"
 	"os"
@@ -66,7 +67,7 @@ func main() {
 		log.Fatal("appId flag empty")
 	}
 
-	mqttClient := mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err := mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -77,7 +78,7 @@ func main() {
 	go func() {
 		<-c
 		for _, topic := range allTopics {
-			err = mqttClient.Publish(topic, mqtt_client.ExactlyOnce, false, "")
+			err = mqttClient.Publish(topic, mqtt_common.ExactlyOnce, false, "")
 			if err != nil {
 				log.Print(err)
 			}
@@ -107,7 +108,7 @@ func main() {
 
 			err = mqttClient.Publish(
 				temperatureTopic,
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				fmt.Sprintf("%v", result.Temp),
 			)
@@ -118,7 +119,7 @@ func main() {
 
 			err = mqttClient.Publish(
 				pressureTopic,
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				fmt.Sprintf("%v", result.Pressure),
 			)
@@ -129,7 +130,7 @@ func main() {
 
 			err = mqttClient.Publish(
 				humidityTopic,
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				fmt.Sprintf("%v", result.Humidity),
 			)
@@ -140,7 +141,7 @@ func main() {
 
 			err = mqttClient.Publish(
 				windSpeedTopic,
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				fmt.Sprintf("%v", result.WindSpeed),
 			)
@@ -151,7 +152,7 @@ func main() {
 
 			err = mqttClient.Publish(
 				windDirectionTopic,
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				fmt.Sprintf("%v", result.WindDirection),
 			)
@@ -162,7 +163,7 @@ func main() {
 
 			err = mqttClient.Publish(
 				sunriseTopic,
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				fmt.Sprintf("%v", result.Sunrise.Unix()*1000),
 			)
@@ -173,7 +174,7 @@ func main() {
 
 			err = mqttClient.Publish(
 				sunsetTopic,
-				mqtt_client.ExactlyOnce,
+				mqtt_common.ExactlyOnce,
 				false,
 				fmt.Sprintf("%v", result.Sunset.Unix()*1000),
 			)

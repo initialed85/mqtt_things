@@ -2,7 +2,7 @@ package mqtt_action_router
 
 import (
 	"fmt"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"log"
 	"strconv"
 	"sync"
@@ -24,7 +24,7 @@ type action struct {
 	off       func(interface{}) error
 	baseState State
 	debounce  time.Duration
-	client    mqtt_client.Client
+	client    mqtt_common.Client
 	getTopic  string
 	mutex     sync.Mutex
 }
@@ -42,7 +42,7 @@ func parseBinaryState(payload string) (State, error) {
 	return State(state), nil
 }
 
-func newAction(setTopic string, arguments interface{}, on func(interface{}) error, off func(interface{}) error, debounce time.Duration, client mqtt_client.Client, baseState State, getTopic string) *action {
+func newAction(setTopic string, arguments interface{}, on func(interface{}) error, off func(interface{}) error, debounce time.Duration, client mqtt_common.Client, baseState State, getTopic string) *action {
 	action := &action{
 		setTopic:  setTopic,
 		arguments: arguments,
@@ -114,7 +114,7 @@ func (a *action) actuate(state State) error {
 	log.Printf("publishing %v to %v ", payload, a.getTopic)
 	var publishErr error
 	for i := 0; i < 4; i++ {
-		publishErr = a.client.Publish(a.getTopic, mqtt_client.ExactlyOnce, true, payload)
+		publishErr = a.client.Publish(a.getTopic, mqtt_common.ExactlyOnce, true, payload)
 		if publishErr != nil {
 			log.Printf("failed to publish %v to %q becuase %v; retry %v",
 				payload, a.getTopic, publishErr, i,
@@ -171,7 +171,7 @@ func (a *action) setup() error {
 	}
 
 	log.Printf("subscribing to %v", a.setTopic)
-	err = a.client.Subscribe(a.setTopic, mqtt_client.ExactlyOnce, a.callback)
+	err = a.client.Subscribe(a.setTopic, mqtt_common.ExactlyOnce, a.callback)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func (a *action) handleBinaryState(incomingPayload string) error {
 	return a.actuate(state)
 }
 
-func (a *action) callback(message mqtt_client.Message) {
+func (a *action) callback(message mqtt_common.Message) {
 	log.Printf("callback for %v called with %+v", a.setTopic, message)
 
 	err := a.handleBinaryState(message.Payload)
@@ -216,7 +216,7 @@ func (a *action) teardown() error {
 }
 
 type Router struct {
-	client          mqtt_client.Client
+	client          mqtt_common.Client
 	debounce        time.Duration
 	actions         map[string]*action
 	actionsMapMutex sync.Mutex
@@ -224,7 +224,7 @@ type Router struct {
 	useActionsMutex bool
 }
 
-func New(client mqtt_client.Client, debounce time.Duration, allowConcurrentActions bool) *Router {
+func New(client mqtt_common.Client, debounce time.Duration, allowConcurrentActions bool) *Router {
 	router := Router{
 		client:          client,
 		debounce:        debounce,

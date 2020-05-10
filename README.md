@@ -1,6 +1,6 @@
 # mqtt_things
 
-This repo contains some Go code to expose a few different devices via MQTT and a generic "action" concept over the top of that. 
+This repo contains some Go code to expose a few different devices via MQTT and a generic "action" concept over the top of that.
 
 ## What does it do?
 
@@ -107,7 +107,14 @@ Here's a dump of all of the command lines as I'm using them around my house (wit
 - /dev/ttyACM0 = USB serial port exposed by Arduino (when plugged into a Raspberry Pi)
 - 192.168.137.15 = Powertech smart plug
 
+NOTE: You can change the MQTT client provider between [GMQ](https://github.com/yosssi/gmq) and [Paho](https://github.com/eclipse/paho.mqtt.golang) by manipulating the `MQTT_CLIENT_PROVIDER` variable; e.g.:
+
+    MQTT_CLIENT_PROVIDER=gmq aircon_cli -host 192.168.137.253 -aircon 192.168.137.20
+    MQTT_CLIENT_PROVIDER=paho aircon_cli -host 192.168.137.253 -aircon 192.168.137.20
+    
+GMQ is the default, it seems to be the most reliable- when using Paho, I can't seem to get my clients to detect a restart / lost comms w/ the broker (tested with both [Eclipse Mosquitto](https://mosquitto.org/) and [HiveMQ](https://www.hivemq.com/))
+
 ## TODO
 
 - Consider fixing implicit behaviour in light naming ("Some Lights" = "some-lights" and vice versa)
-- Consider fixing failure to DRY throughout the *_cli.go files
+- Consider fixing failure to DRY throughout the cmd/*_cli/main.go files

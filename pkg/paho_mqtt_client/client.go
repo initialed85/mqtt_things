@@ -1,16 +1,12 @@
-package mqtt_client
+package paho_mqtt_client
 
 import (
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/google/uuid"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"log"
 	"time"
-)
-
-const (
-	AtMostOnce  = byte(0)
-	AtLeastOnce = byte(1)
-	ExactlyOnce = byte(2)
 )
 
 var TestMode = false
@@ -21,30 +17,30 @@ func enableTestMode(host string) {
 	TestHost = host
 }
 
-type Message struct {
-	Received  time.Time
-	Duplicate bool
-	Qos       byte
-	Retained  bool
-	Topic     string
-	MessageID uint16
-	Payload   string
-	Ack       func()
-}
-
 type Client struct {
 	clientOptions *mqtt.ClientOptions
 	connectToken  mqtt.Token
 	client        mqtt.Client
 }
 
-func New(host, username, password string) (c Client) {
+func New(host, username, password string) (c *Client) {
 	if TestMode {
 		host = TestHost
 	}
 
+	clientID := "paho_"
+	uuid4, err := uuid.NewRandom()
+	if err != nil {
+		clientID += fmt.Sprintf("unknown_%+v", time.Now().UnixNano())
+	} else {
+		clientID += uuid4.String()
+	}
+
+	c = &Client{}
+
 	c.clientOptions = mqtt.NewClientOptions()
 	c.clientOptions.AddBroker(fmt.Sprintf("tcp://%v:1883", host))
+	c.clientOptions.SetClientID(string(clientID))
 	c.clientOptions.SetUsername(username)
 	c.clientOptions.SetPassword(password)
 	c.clientOptions.SetKeepAlive(time.Second * 2)
@@ -92,17 +88,13 @@ func (c *Client) Publish(topic string, qos byte, retained bool, payload interfac
 	return token.Error()
 }
 
-func (c *Client) Subscribe(topic string, qos byte, callback func(Message)) error {
+func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_common.Message)) error {
 	wrappedCallback := func(client mqtt.Client, message mqtt.Message) {
-		callback(Message{
+		callback(mqtt_common.Message{
 			Received:  time.Now(),
-			Duplicate: message.Duplicate(),
-			Qos:       message.Qos(),
-			Retained:  message.Retained(),
 			Topic:     message.Topic(),
 			MessageID: message.MessageID(),
 			Payload:   string(message.Payload()),
-			Ack:       message.Ack,
 		})
 	}
 

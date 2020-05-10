@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"github.com/initialed85/mqtt_things/pkg/lights_client"
 	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"log"
 	"os"
 	"os/signal"
@@ -42,7 +43,7 @@ func main() {
 		Client: lightsClient,
 	}
 
-	mqttClient := mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err := mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -111,7 +112,7 @@ func main() {
 
 				err := mqttClient.Publish(
 					fmt.Sprintf("home/inside/lights/globe/%v/state/get", l.Name),
-					mqtt_client.ExactlyOnce,
+					mqtt_common.ExactlyOnce,
 					true,
 					fmt.Sprintf("%v", l.State),
 				)

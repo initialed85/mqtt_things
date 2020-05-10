@@ -1,6 +1,7 @@
-package mqtt_client
+package paho_mqtt_client
 
 import (
+	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -19,15 +20,15 @@ func TestClient_All(t *testing.T) {
 	err := client.Connect()
 	assert.Nil(t, err)
 
-	var capturedMessage *Message
-	callback := func(message Message) {
+	var capturedMessage *mqtt_common.Message
+	callback := func(message mqtt_common.Message) {
 		capturedMessage = &message
 	}
 
-	err = client.Subscribe(topic, ExactlyOnce, callback)
+	err = client.Subscribe(topic, mqtt_common.ExactlyOnce, callback)
 	assert.Nil(t, err)
 
-	err = client.Publish(topic, ExactlyOnce, false, "Some data")
+	err = client.Publish(topic, mqtt_common.ExactlyOnce, false, "Some data")
 	assert.Nil(t, err)
 
 	started := time.Now()
@@ -40,8 +41,6 @@ func TestClient_All(t *testing.T) {
 
 	assert.NotNil(t, capturedMessage, "failed to receive a message in %v", timeout)
 	if capturedMessage != nil {
-		assert.Equal(t, false, capturedMessage.Duplicate)
-		assert.Equal(t, ExactlyOnce, capturedMessage.Qos)
 		assert.Equal(t, topic, capturedMessage.Topic)
 		assert.Equal(t, "Some data", capturedMessage.Payload)
 
