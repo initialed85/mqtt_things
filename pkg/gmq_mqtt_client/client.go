@@ -6,6 +6,7 @@ import (
 	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"github.com/yosssi/gmq/mqtt/client"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -17,10 +18,18 @@ func enableTestMode(host string) {
 	TestHost = host
 }
 
+type Subscription struct {
+	topic    string
+	qos      byte
+	callback func(message mqtt_common.Message)
+}
+
 type Client struct {
-	connectOptions client.ConnectOptions
-	options        client.Options
-	client         *client.Client
+	connectOptions      client.ConnectOptions
+	options             client.Options
+	client              *client.Client
+	mu                  sync.RWMutex
+	subscriptionByTopic map[string]Subscription
 }
 
 func New(host, username, password string) (c *Client) {
@@ -36,7 +45,9 @@ func New(host, username, password string) (c *Client) {
 		clientID += uuid4.String()
 	}
 
-	c = &Client{}
+	c = &Client{
+		subscriptionByTopic: make(map[string]Subscription),
+	}
 
 	c.connectOptions = client.ConnectOptions{
 		Network:         "tcp",
@@ -51,7 +62,14 @@ func New(host, username, password string) (c *Client) {
 
 	c.options = client.Options{
 		ErrorHandler: func(err error) {
-			panic(err)
+			log.Printf("error handler fired because %+v; backing off and reconnecting...", err)
+
+			time.Sleep(time.Second * 5)
+
+			err = c.Reconnect()
+			if err != nil {
+				panic(fmt.Errorf("reconnected after backoff failed because %+v; giving up", err))
+			}
 		},
 	}
 
@@ -65,7 +83,12 @@ func (c *Client) Connect() error {
 
 	c.client = client.New(&c.options)
 
-	return c.client.Connect(&c.connectOptions)
+	err := c.client.Connect(&c.connectOptions)
+	if err == nil {
+		log.Printf("connected")
+	}
+
+	return err
 }
 
 func (c *Client) Publish(topic string, qos byte, retained bool, payload interface{}) error {
@@ -93,7 +116,7 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 
 	log.Printf("subscribing to %v callback %p and qos %v", topic, callback, qos)
 
-	return c.client.Subscribe(&client.SubscribeOptions{
+	err := c.client.Subscribe(&client.SubscribeOptions{
 		SubReqs: []*client.SubReq{
 			{
 				TopicFilter: []byte(topic),
@@ -102,16 +125,36 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 			},
 		},
 	})
+
+	if err == nil {
+		c.mu.Lock()
+		c.subscriptionByTopic[topic] = Subscription{
+			topic,
+			qos,
+			callback,
+		}
+		c.mu.Unlock()
+	}
+
+	return err
 }
 
 func (c *Client) Unsubscribe(topic string) error {
 	log.Printf("unsubscribing from %v", topic)
 
-	return c.client.Unsubscribe(&client.UnsubscribeOptions{
+	err := c.client.Unsubscribe(&client.UnsubscribeOptions{
 		TopicFilters: [][]byte{
 			[]byte(topic),
 		},
 	})
+
+	if err == nil {
+		c.mu.Lock()
+		delete(c.subscriptionByTopic, topic)
+		c.mu.Unlock()
+	}
+
+	return err
 }
 
 func (c *Client) Disconnect() error {
@@ -122,4 +165,24 @@ func (c *Client) Disconnect() error {
 	c.client = nil
 
 	return err
+}
+
+func (c *Client) Reconnect() error {
+	_ = c.Disconnect()
+
+	err := c.Connect()
+	if err != nil {
+		return err
+	}
+
+	c.mu.Lock()
+	for _, subscription := range c.subscriptionByTopic {
+		err = c.Subscribe(subscription.topic, subscription.qos, subscription.callback)
+		if err != nil {
+			return err
+		}
+	}
+	c.mu.Unlock()
+
+	return nil
 }

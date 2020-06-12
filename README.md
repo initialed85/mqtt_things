@@ -111,8 +111,14 @@ NOTE: You can change the MQTT client provider between [GMQ](https://github.com/y
 
     MQTT_CLIENT_PROVIDER=gmq aircon_cli -host 192.168.137.253 -aircon 192.168.137.20
     MQTT_CLIENT_PROVIDER=paho aircon_cli -host 192.168.137.253 -aircon 192.168.137.20
+    MQTT_CLIENT_PROVIDER=libmqtt aircon_cli -host 192.168.137.253 -aircon 192.168.137.20
     
-GMQ is the default, it seems to be the most reliable- when using Paho, I can't seem to get my clients to detect a restart / lost comms w/ the broker (tested with both [Eclipse Mosquitto](https://mosquitto.org/) and [HiveMQ](https://www.hivemq.com/))
+- `paho`
+    - the first library I used- doesn't seem to throw errors on lost connectivity with the server (so you can't handle it)
+- `gmq` (the default)
+    - seems to be the most robust; also the only one I've implemented and error-handler-driven reconnect for
+- `libmqtt`
+    - doesn't support wildcards, seems a little flaky
 
 ## TODO
 
