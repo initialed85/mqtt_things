@@ -22,8 +22,10 @@ setup
 if [[ "${*}" == "" ]]; then
   go test -v ./pkg/gmq_mqtt_client
   go test -v ./pkg/paho_mqtt_client
+  go test -v ./pkg/libmqtt_mqtt_client
   MQTT_CLIENT_PROVIDER=gmq go test -v ./pkg/mqtt_action_router
   MQTT_CLIENT_PROVIDER=paho go test -v ./pkg/mqtt_action_router
+  MQTT_CLIENT_PROVIDER=libmqtt go test -v ./pkg/mqtt_action_router
 
   go test -v ./pkg/aircons_client
   go test -v ./pkg/circumstances_engine

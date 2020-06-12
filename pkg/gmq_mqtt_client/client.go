@@ -41,12 +41,12 @@ func New(host, username, password string) (c *Client) {
 	c.connectOptions = client.ConnectOptions{
 		Network:         "tcp",
 		Address:         fmt.Sprintf("%v:1883", host),
-		CONNACKTimeout:  time.Second * 2,
-		PINGRESPTimeout: time.Second * 2,
+		CONNACKTimeout:  time.Second * 5,
+		PINGRESPTimeout: time.Second * 5,
 		ClientID:        []byte(clientID),
 		UserName:        []byte(username),
 		Password:        []byte(password),
-		KeepAlive:       2,
+		KeepAlive:       1,
 	}
 
 	c.options = client.Options{
