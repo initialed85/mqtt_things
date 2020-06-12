@@ -25,11 +25,11 @@ type Subscription struct {
 }
 
 type Client struct {
-	connectOptions      client.ConnectOptions
-	options             client.Options
-	client              *client.Client
-	mu                  sync.RWMutex
-	subscriptionByTopic map[string]Subscription
+	connectOptions                           client.ConnectOptions
+	options                                  client.Options
+	client                                   *client.Client
+	subscriptionByTopicMutex, reconnectMutex sync.RWMutex
+	subscriptionByTopic                      map[string]Subscription
 }
 
 func New(host, username, password string) (c *Client) {
@@ -62,6 +62,8 @@ func New(host, username, password string) (c *Client) {
 
 	c.options = client.Options{
 		ErrorHandler: func(err error) {
+			c.reconnectMutex.Lock()
+			defer c.reconnectMutex.Unlock()
 			log.Printf("error handler fired because %+v; backing off and reconnecting...", err)
 
 			time.Sleep(time.Second * 5)
@@ -92,6 +94,10 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+	// TODO: this is a bit kludgy- block anyone trying to publish while we're reconnecting
+	c.reconnectMutex.Lock()
+	defer c.reconnectMutex.Unlock()
+
 	log.Printf("publishing %v to %v with qos %v and retained %v", topic, payload, qos, retained)
 
 	return c.client.Publish(
@@ -105,6 +111,8 @@ func (c *Client) Publish(topic string, qos byte, retained bool, payload interfac
 }
 
 func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_common.Message)) error {
+	// TODO: no reconnectMutex here because we need to subscribe during reconnect- it's fine it's fine
+
 	wrappedCallback := func(topicName, message []byte) {
 		callback(mqtt_common.Message{
 			Received:  time.Now(),
@@ -127,13 +135,13 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 	})
 
 	if err == nil {
-		c.mu.Lock()
+		c.subscriptionByTopicMutex.Lock()
 		c.subscriptionByTopic[topic] = Subscription{
 			topic,
 			qos,
 			callback,
 		}
-		c.mu.Unlock()
+		c.subscriptionByTopicMutex.Unlock()
 	}
 
 	return err
@@ -149,9 +157,9 @@ func (c *Client) Unsubscribe(topic string) error {
 	})
 
 	if err == nil {
-		c.mu.Lock()
+		c.subscriptionByTopicMutex.Lock()
 		delete(c.subscriptionByTopic, topic)
-		c.mu.Unlock()
+		c.subscriptionByTopicMutex.Unlock()
 	}
 
 	return err
@@ -175,14 +183,14 @@ func (c *Client) Reconnect() error {
 		return err
 	}
 
-	c.mu.Lock()
+	c.subscriptionByTopicMutex.Lock()
 	for _, subscription := range c.subscriptionByTopic {
 		err = c.Subscribe(subscription.topic, subscription.qos, subscription.callback)
 		if err != nil {
 			return err
 		}
 	}
-	c.mu.Unlock()
+	c.subscriptionByTopicMutex.Unlock()
 
 	return nil
 }
