@@ -27,15 +27,17 @@ func GetMQTTClient(host, username, password string) (client mqtt_common.Client) 
 		}
 	}
 
-	log.Printf("%+v", os.Environ())
-
 	if usePaho {
+		log.Printf("using Paho")
 		client = paho_mqtt_client.New(host, username, password)
 	} else if useGMQ {
+		log.Printf("using GMQ")
 		client = gmq_mqtt_client.New(host, username, password)
 	} else if useLibMQTT {
+		log.Printf("using LibMQTT")
 		client = libmqtt_mqtt_client.New(host, username, password)
-	} else { // the default
+	} else {
+		log.Printf("using GMQ (because it's the default)")
 		client = gmq_mqtt_client.New(host, username, password)
 	}
 

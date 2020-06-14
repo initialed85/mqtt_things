@@ -6,7 +6,6 @@ import (
 	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"github.com/yosssi/gmq/mqtt/client"
 	"log"
-	"sync"
 	"time"
 )
 
@@ -28,8 +27,6 @@ type Client struct {
 	connectOptions                           client.ConnectOptions
 	options                                  client.Options
 	client                                   *client.Client
-	subscriptionByTopicMutex, reconnectMutex sync.RWMutex
-	subscriptionByTopic                      map[string]Subscription
 }
 
 func New(host, username, password string) (c *Client) {
@@ -45,9 +42,7 @@ func New(host, username, password string) (c *Client) {
 		clientID += uuid4.String()
 	}
 
-	c = &Client{
-		subscriptionByTopic: make(map[string]Subscription),
-	}
+	c = &Client{}
 
 	c.connectOptions = client.ConnectOptions{
 		Network:         "tcp",
@@ -62,16 +57,7 @@ func New(host, username, password string) (c *Client) {
 
 	c.options = client.Options{
 		ErrorHandler: func(err error) {
-			c.reconnectMutex.Lock()
-			defer c.reconnectMutex.Unlock()
-			log.Printf("error handler fired because %+v; backing off and reconnecting...", err)
-
-			time.Sleep(time.Second * 5)
-
-			err = c.Reconnect()
-			if err != nil {
-				panic(fmt.Errorf("reconnected after backoff failed because %+v; giving up", err))
-			}
+			log.Printf("error handler fired because %+v", err)
 		},
 	}
 
@@ -94,10 +80,6 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Publish(topic string, qos byte, retained bool, payload interface{}) error {
-	// TODO: this is a bit kludgy- block anyone trying to publish while we're reconnecting
-	c.reconnectMutex.Lock()
-	defer c.reconnectMutex.Unlock()
-
 	log.Printf("publishing %v to %v with qos %v and retained %v", topic, payload, qos, retained)
 
 	return c.client.Publish(
@@ -111,8 +93,6 @@ func (c *Client) Publish(topic string, qos byte, retained bool, payload interfac
 }
 
 func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_common.Message)) error {
-	// TODO: no reconnectMutex here because we need to subscribe during reconnect- it's fine it's fine
-
 	wrappedCallback := func(topicName, message []byte) {
 		callback(mqtt_common.Message{
 			Received:  time.Now(),
@@ -124,7 +104,7 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 
 	log.Printf("subscribing to %v callback %p and qos %v", topic, callback, qos)
 
-	err := c.client.Subscribe(&client.SubscribeOptions{
+	return c.client.Subscribe(&client.SubscribeOptions{
 		SubReqs: []*client.SubReq{
 			{
 				TopicFilter: []byte(topic),
@@ -133,36 +113,16 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 			},
 		},
 	})
-
-	if err == nil {
-		c.subscriptionByTopicMutex.Lock()
-		c.subscriptionByTopic[topic] = Subscription{
-			topic,
-			qos,
-			callback,
-		}
-		c.subscriptionByTopicMutex.Unlock()
-	}
-
-	return err
 }
 
 func (c *Client) Unsubscribe(topic string) error {
 	log.Printf("unsubscribing from %v", topic)
 
-	err := c.client.Unsubscribe(&client.UnsubscribeOptions{
+	return c.client.Unsubscribe(&client.UnsubscribeOptions{
 		TopicFilters: [][]byte{
 			[]byte(topic),
 		},
 	})
-
-	if err == nil {
-		c.subscriptionByTopicMutex.Lock()
-		delete(c.subscriptionByTopic, topic)
-		c.subscriptionByTopicMutex.Unlock()
-	}
-
-	return err
 }
 
 func (c *Client) Disconnect() error {
@@ -173,24 +133,4 @@ func (c *Client) Disconnect() error {
 	c.client = nil
 
 	return err
-}
-
-func (c *Client) Reconnect() error {
-	_ = c.Disconnect()
-
-	err := c.Connect()
-	if err != nil {
-		return err
-	}
-
-	c.subscriptionByTopicMutex.Lock()
-	for _, subscription := range c.subscriptionByTopic {
-		err = c.Subscribe(subscription.topic, subscription.qos, subscription.callback)
-		if err != nil {
-			return err
-		}
-	}
-	c.subscriptionByTopicMutex.Unlock()
-
-	return nil
 }

@@ -140,14 +140,3 @@ func (c *Client) Disconnect() error {
 
 	return nil
 }
-
-func (c *Client) Reconnect() error {
-	_ = c.Disconnect()
-
-	err := c.Connect()
-	if err != nil {
-		log.Printf("caught %+v trying to reconnect", err)
-	}
-
-	return err
-}

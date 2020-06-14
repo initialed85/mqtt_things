@@ -21,5 +21,4 @@ type Client interface {
 	Subscribe(topic string, qos byte, callback func(message Message)) error
 	Unsubscribe(topic string) error
 	Disconnect() error
-	Reconnect() error
 }
