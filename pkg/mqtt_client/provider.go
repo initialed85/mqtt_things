@@ -49,7 +49,7 @@ func GetMQTTClient(host, username, password string) (client Client) {
 		client = GetLibMQTTClient(host, username, password, p.HandleError)
 	} else {
 		log.Printf("using GMQ (because it's the default)")
-		client = GetPahoClient(host, username, password, p.HandleError)
+		client = GetGMQClient(host, username, password, p.HandleError)
 	}
 
 	p.SetClient(client)
