@@ -1,21 +1,18 @@
-package libmqtt_mqtt_client
+package mqtt_client
 
 import (
 	"fmt"
 	"github.com/goiiot/libmqtt"
-	"github.com/google/uuid"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
-	"log"
 	"sync"
 	"time"
 )
 
-var TestMode = false
-var TestHost string
+var LibMQTTTestMode = false
+var LibMQTTTestHost string
 
-func enableTestMode(host string) {
-	TestMode = true
-	TestHost = host
+func EnableLibMQTTTestMode(host string) {
+	LibMQTTTestMode = true
+	LibMQTTTestHost = host
 }
 
 func getQosLevel(qos byte) (libmqtt.QosLevel, error) {
@@ -30,45 +27,41 @@ func getQosLevel(qos byte) (libmqtt.QosLevel, error) {
 	}
 }
 
-type Client struct {
+type LibMQTTClient struct {
 	clientID, host, username, password string
 	client                             libmqtt.Client
+	errorHandler                       func(Client, error)
 }
 
-func New(host, username, password string) (c *Client) {
-	if TestMode {
-		host = TestHost
+func NewLibMQTTClient(host, username, password string, errorHandler func(Client, error)) (c *LibMQTTClient) {
+	if LibMQTTTestMode {
+		host = LibMQTTTestHost
 	}
 
-	clientID := "libmqtt_"
-	uuid4, err := uuid.NewRandom()
-	if err != nil {
-		clientID += fmt.Sprintf("unknown_%+v", time.Now().UnixNano())
-	} else {
-		clientID += uuid4.String()
+	clientID := getClientID("libmqtt")
+
+	return &LibMQTTClient{
+		clientID:     clientID,
+		host:         host,
+		username:     username,
+		password:     password,
+		errorHandler: errorHandler,
 	}
-
-	c = &Client{
-		clientID: clientID,
-		host:     host,
-		username: username,
-		password: password,
-	}
-
-	log.Printf("created")
-
-	return c
 }
 
-func (c *Client) Connect() error {
-	log.Printf("connecting")
-
+func (c *LibMQTTClient) Connect() error {
 	newClient, err := libmqtt.NewClient(
 		libmqtt.WithDialTimeout(5),
 		libmqtt.WithClientID(c.clientID),
 		libmqtt.WithIdentity(c.username, c.password),
 		libmqtt.WithKeepalive(5, 1.2),
-		libmqtt.WithLog(libmqtt.Debug),
+		libmqtt.WithNetHandleFunc(func(_ libmqtt.Client, _ string, err error) {
+			go func() {
+				time.Sleep(time.Second)
+
+				c.errorHandler(c, err)
+			}()
+		}),
 	)
 	if err != nil {
 		return err
@@ -106,9 +99,7 @@ func (c *Client) Connect() error {
 	return connErr
 }
 
-func (c *Client) Publish(topic string, qos byte, retained bool, payload interface{}) error {
-	log.Printf("publishing %v to %v with qos %v and retained %v", topic, payload, qos, retained)
-
+func (c *LibMQTTClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
 	qosLevel, err := getQosLevel(qos)
 	if err != nil {
 		return err
@@ -126,9 +117,7 @@ func (c *Client) Publish(topic string, qos byte, retained bool, payload interfac
 	return nil
 }
 
-func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_common.Message)) error {
-	log.Printf("subscribing to %v callback %p and qos %v", topic, callback, qos)
-
+func (c *LibMQTTClient) Subscribe(topic string, qos byte, callback func(message Message)) error {
 	qosLevel, err := getQosLevel(qos)
 	if err != nil {
 		return err
@@ -136,7 +125,7 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 
 	topicHandleFunc := func(client libmqtt.Client, topic string, qos libmqtt.QosLevel, msg []byte) {
 		callback(
-			mqtt_common.Message{
+			Message{
 				Received:  time.Now(),
 				Topic:     topic,
 				MessageID: 0,
@@ -154,17 +143,13 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 	return nil
 }
 
-func (c *Client) Unsubscribe(topic string) error {
-	log.Printf("unsubscribing from %v", topic)
-
+func (c *LibMQTTClient) Unsubscribe(topic string) error {
 	c.client.Unsubscribe(topic)
 
 	return nil
 }
 
-func (c *Client) Disconnect() error {
-	log.Printf("disconnecting")
-
+func (c *LibMQTTClient) Disconnect() error {
 	c.client.Destroy(false)
 
 	c.client = nil

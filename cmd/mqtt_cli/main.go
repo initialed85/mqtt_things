@@ -2,8 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"log"
 	"os"
 	"os/signal"
@@ -35,7 +34,7 @@ func main() {
 		log.Fatal("topic flag empty")
 	}
 
-	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err := mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -58,18 +57,18 @@ func main() {
 			log.Fatal("message flag empty")
 		}
 
-		err = mqttClient.Publish(*topicPtr, mqtt_common.ExactlyOnce, false, *payloadPtr)
+		err = mqttClient.Publish(*topicPtr, mqtt.ExactlyOnce, false, *payloadPtr)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		time.Sleep(time.Second)
 	} else if *modePtr == "sub" {
-		callback := func(message mqtt_common.Message) {
+		callback := func(message mqtt.Message) {
 			log.Printf("%+v\n", message)
 		}
 
-		err = mqttClient.Subscribe(*topicPtr, mqtt_common.ExactlyOnce, callback)
+		err = mqttClient.Subscribe(*topicPtr, mqtt.ExactlyOnce, callback)
 		if err != nil {
 			log.Fatal(err)
 		}

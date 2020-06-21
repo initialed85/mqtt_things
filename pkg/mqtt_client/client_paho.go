@@ -1,46 +1,40 @@
-package paho_mqtt_client
+package mqtt_client
 
 import (
 	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/google/uuid"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
-	"log"
+	paho "github.com/eclipse/paho.mqtt.golang"
 	"time"
 )
 
-var TestMode = false
-var TestHost string
+var PahoTestMode = false
+var PahoTestHost string
 
-func enableTestMode(host string) {
-	TestMode = true
-	TestHost = host
+func EnablePahoTestMode(host string) {
+	PahoTestMode = true
+	PahoTestHost = host
 }
 
-type Client struct {
-	clientOptions *mqtt.ClientOptions
-	connectToken  mqtt.Token
-	client        mqtt.Client
+type PahoClient struct {
+	clientOptions *paho.ClientOptions
+	connectToken  paho.Token
+	client        paho.Client
+	errorHandler  func(Client, error)
 }
 
-func New(host, username, password string) (c *Client) {
-	if TestMode {
-		host = TestHost
+func NewPahoClient(host, username, password string, errorHandler func(Client, error)) (c *PahoClient) {
+	if PahoTestMode {
+		host = PahoTestHost
 	}
 
-	clientID := "paho_"
-	uuid4, err := uuid.NewRandom()
-	if err != nil {
-		clientID += fmt.Sprintf("unknown_%+v", time.Now().UnixNano())
-	} else {
-		clientID += uuid4.String()
+	clientID := getClientID("paho")
+
+	c = &PahoClient{
+		errorHandler: errorHandler,
 	}
 
-	c = &Client{}
-
-	c.clientOptions = mqtt.NewClientOptions()
+	c.clientOptions = paho.NewClientOptions()
 	c.clientOptions.AddBroker(fmt.Sprintf("tcp://%v:1883", host))
-	c.clientOptions.SetClientID(string(clientID))
+	c.clientOptions.SetClientID(clientID)
 	c.clientOptions.SetUsername(username)
 	c.clientOptions.SetPassword(password)
 	c.clientOptions.SetKeepAlive(time.Second * 2)
@@ -50,16 +44,19 @@ func New(host, username, password string) (c *Client) {
 	c.clientOptions.SetMaxReconnectInterval(time.Second * 4)
 	c.clientOptions.SetAutoReconnect(true)
 	c.clientOptions.SetResumeSubs(true)
+	c.clientOptions.OnConnectionLost = func(client paho.Client, err error) {
+		go func() {
+			time.Sleep(time.Second)
 
-	log.Printf("created %+v", c.clientOptions)
+			c.errorHandler(c, err)
+		}()
+	}
 
 	return c
 }
 
-func (c *Client) Connect() error {
-	log.Printf("connecting")
-
-	c.client = mqtt.NewClient(c.clientOptions)
+func (c *PahoClient) Connect() error {
+	c.client = paho.NewClient(c.clientOptions)
 
 	c.connectToken = c.client.Connect()
 	if c.connectToken == nil {
@@ -73,9 +70,7 @@ func (c *Client) Connect() error {
 	return c.connectToken.Error()
 }
 
-func (c *Client) Publish(topic string, qos byte, retained bool, payload interface{}) error {
-	log.Printf("publishing %v to %v with qos %v and retained %v", topic, payload, qos, retained)
-
+func (c *PahoClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
 	token := c.client.Publish(topic, qos, retained, payload)
 	if token == nil {
 		return fmt.Errorf("nil token while publishing (%v, %v, %v, %v)", topic, qos, retained, payload)
@@ -88,17 +83,15 @@ func (c *Client) Publish(topic string, qos byte, retained bool, payload interfac
 	return token.Error()
 }
 
-func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_common.Message)) error {
-	wrappedCallback := func(client mqtt.Client, message mqtt.Message) {
-		callback(mqtt_common.Message{
+func (c *PahoClient) Subscribe(topic string, qos byte, callback func(message Message)) error {
+	wrappedCallback := func(client paho.Client, message paho.Message) {
+		callback(Message{
 			Received:  time.Now(),
 			Topic:     message.Topic(),
 			MessageID: message.MessageID(),
 			Payload:   string(message.Payload()),
 		})
 	}
-
-	log.Printf("subscribing to %v callback %p and qos %v", topic, callback, qos)
 
 	token := c.client.Subscribe(topic, qos, wrappedCallback)
 	if token == nil {
@@ -112,9 +105,7 @@ func (c *Client) Subscribe(topic string, qos byte, callback func(message mqtt_co
 	return token.Error()
 }
 
-func (c *Client) Unsubscribe(topic string) error {
-	log.Printf("unsubscribing from %v", topic)
-
+func (c *PahoClient) Unsubscribe(topic string) error {
 	token := c.client.Unsubscribe(topic)
 	if token == nil {
 		return fmt.Errorf("nil token while unsubscribing (%v)", topic)
@@ -127,14 +118,12 @@ func (c *Client) Unsubscribe(topic string) error {
 	return token.Error()
 }
 
-func (c *Client) Disconnect() error {
-	log.Printf("disconnecting")
-
+func (c *PahoClient) Disconnect() error {
 	if c.connectToken == nil {
 		return fmt.Errorf("nil token while disconnecting")
 	}
 
-	c.client.Disconnect(1000)
+	c.client.Disconnect(0)
 
 	c.client = nil
 

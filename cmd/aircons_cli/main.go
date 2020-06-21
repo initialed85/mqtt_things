@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"github.com/initialed85/mqtt_things/pkg/aircons_client"
 	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"log"
 	"os"
 	"os/signal"
@@ -82,7 +81,7 @@ func main() {
 		Client: airconsClient,
 	}
 
-	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -151,7 +150,7 @@ func main() {
 
 				err := mqttClient.Publish(
 					fmt.Sprintf("home/inside/aircons/%v/state/get", a.Name),
-					mqtt_common.ExactlyOnce,
+					mqtt.ExactlyOnce,
 					true,
 					fmt.Sprintf("%v", a.State),
 				)

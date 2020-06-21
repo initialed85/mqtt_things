@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
+
 	"log"
 	"net/http"
 	"os"
@@ -36,7 +35,7 @@ var (
 	topicPayloadByUrl = map[string]TopicPayload{}
 )
 
-func callback(message mqtt_common.Message) {
+func callback(message mqtt.Message) {
 	if !strings.HasSuffix(message.Topic, "/get") {
 		return
 	}
@@ -142,7 +141,7 @@ func main() {
 		log.Fatal("port flag empty")
 	}
 
-	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err := mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -160,7 +159,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	err = mqttClient.Subscribe(topic, mqtt_common.ExactlyOnce, callback)
+	err = mqttClient.Subscribe(topic, mqtt.ExactlyOnce, callback)
 	if err != nil {
 		log.Fatal(err)
 	}

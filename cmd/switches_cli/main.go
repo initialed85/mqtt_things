@@ -3,9 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
 	"github.com/initialed85/mqtt_things/pkg/switches_client"
 	"log"
 	"os"
@@ -73,7 +72,7 @@ func main() {
 		Client: switchesClient,
 	}
 
-	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err := mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -142,7 +141,7 @@ func main() {
 
 				err := mqttClient.Publish(
 					fmt.Sprintf("home/inside/switches/globe/%v/state/get", s.Name),
-					mqtt_common.ExactlyOnce,
+					mqtt.ExactlyOnce,
 					true,
 					fmt.Sprintf("%v", s.State),
 				)

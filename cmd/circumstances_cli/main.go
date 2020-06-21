@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/initialed85/mqtt_things/pkg/circumstances_engine"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
-	"github.com/initialed85/mqtt_things/pkg/paho_mqtt_client"
+	"github.com/initialed85/mqtt_things/pkg/mqtt"
+
 	"log"
 	"os"
 	"os/signal"
@@ -59,7 +59,7 @@ func parseTimestamp(payload string) (time.Time, error) {
 	)
 }
 
-func handleMessage(message mqtt_common.Message) {
+func handleMessage(message mqtt.Message) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -123,7 +123,7 @@ func main() {
 		log.Fatalf("failed to parse HH:MM:SS fom '%v'", *waketimePtr)
 	}
 
-	mqttClient := paho_mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
 	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
@@ -142,7 +142,7 @@ func main() {
 	}()
 
 	for _, topic := range []string{temperatureTopic, sunriseTopic, sunsetTopic} {
-		err := mqttClient.Subscribe(topic, mqtt_common.ExactlyOnce, handleMessage)
+		err := mqttClient.Subscribe(topic, mqtt.ExactlyOnce, handleMessage)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -218,7 +218,7 @@ func main() {
 
 					err = mqttClient.Publish(
 						circumstanceAndTopic.Topic,
-						mqtt_common.ExactlyOnce,
+						mqtt.ExactlyOnce,
 						true,
 						circumstanceAndTopic.Circumstance,
 					)

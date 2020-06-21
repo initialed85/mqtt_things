@@ -1,8 +1,7 @@
 package mqtt_action_router
 
 import (
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_common"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
@@ -50,11 +49,11 @@ var (
 	actuatableThing2 ActuatableThing
 )
 
-func callback1(message mqtt_common.Message) {
+func callback1(message mqtt.Message) {
 	lastPayload1 = message.Payload
 }
 
-func callback2(message mqtt_common.Message) {
+func callback2(message mqtt.Message) {
 	lastPayload2 = message.Payload
 }
 
@@ -63,14 +62,14 @@ func setupActionTest(state State) *action {
 	actuatableThing1.IsOn = false
 
 	// NOTE: requires a local eclipse-mosquitto Docker container to be running
-	client := mqtt_client_provider.GetMQTTClient("127.0.0.1", "", "")
+	client := mqtt.GetMQTTClient("127.0.0.1", "", "")
 
 	err := client.Connect()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = client.Subscribe(getTopic1, mqtt_common.ExactlyOnce, callback1)
+	err = client.Subscribe(getTopic1, mqtt.ExactlyOnce, callback1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -194,7 +193,7 @@ func TestAction_callback_Off(t *testing.T) {
 	assert.Equal(t, false, actuatableThing1.IsOn)
 	assert.Equal(t, 6291, actuatableThing1.Index)
 
-	err = action.client.Publish(setTopic1, mqtt_common.ExactlyOnce, false, "0")
+	err = action.client.Publish(setTopic1, mqtt.ExactlyOnce, false, "0")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -220,7 +219,7 @@ func TestAction_callback_On(t *testing.T) {
 	assert.Equal(t, false, actuatableThing1.IsOn)
 	assert.Equal(t, 6291, actuatableThing1.Index)
 
-	err = action.client.Publish(setTopic1, mqtt_common.ExactlyOnce, false, "1")
+	err = action.client.Publish(setTopic1, mqtt.ExactlyOnce, false, "1")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -282,19 +281,19 @@ func setupActionRouterTest() *Router {
 	actuatableThing2.IsOn = false
 
 	// NOTE: requires a local eclipse-mosquitto Docker container to be running
-	client := mqtt_client_provider.GetMQTTClient("127.0.0.1", "", "")
+	client := mqtt.GetMQTTClient("127.0.0.1", "", "")
 
 	err := client.Connect()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = client.Subscribe(getTopic1, mqtt_common.ExactlyOnce, callback1)
+	err = client.Subscribe(getTopic1, mqtt.ExactlyOnce, callback1)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = client.Subscribe(getTopic2, mqtt_common.ExactlyOnce, callback2)
+	err = client.Subscribe(getTopic2, mqtt.ExactlyOnce, callback2)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -343,7 +342,7 @@ func TestActionRouter_Everything(t *testing.T) {
 	assert.Equal(t, false, actuatableThing1.IsOn)
 	assert.Equal(t, 6291, actuatableThing1.Index)
 
-	err = actionRouter.client.Publish(setTopic1, mqtt_common.ExactlyOnce, false, "1")
+	err = actionRouter.client.Publish(setTopic1, mqtt.ExactlyOnce, false, "1")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -357,7 +356,7 @@ func TestActionRouter_Everything(t *testing.T) {
 	assert.Equal(t, false, actuatableThing2.IsOn)
 	assert.Equal(t, 6291, actuatableThing2.Index)
 
-	err = actionRouter.client.Publish(setTopic2, mqtt_common.ExactlyOnce, false, "1")
+	err = actionRouter.client.Publish(setTopic2, mqtt.ExactlyOnce, false, "1")
 	if err != nil {
 		log.Fatal(err)
 	}

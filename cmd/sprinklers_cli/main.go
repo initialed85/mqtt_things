@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_client_provider"
 	"github.com/initialed85/mqtt_things/pkg/relays_client"
 	"log"
 	"os"
@@ -70,7 +70,7 @@ func main() {
 		Client: relaysClient,
 	}
 
-	mqttClient := mqtt_client_provider.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
