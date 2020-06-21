@@ -4,6 +4,7 @@ import (
 	"flag"
 
 	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"github.com/initialed85/mqtt_things/pkg/relays_client"
 	"log"
 	"os"

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"github.com/initialed85/mqtt_things/pkg/weather_client"
 	"log"
 	"os"

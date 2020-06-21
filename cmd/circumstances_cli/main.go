@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/initialed85/mqtt_things/pkg/circumstances_engine"
-	"github.com/initialed85/mqtt_things/pkg/mqtt"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 
 	"log"
 	"os"
@@ -123,7 +123,7 @@ func main() {
 		log.Fatalf("failed to parse HH:MM:SS fom '%v'", *waketimePtr)
 	}
 
-	mqttClient := mqtt_client.New(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
