@@ -55,6 +55,7 @@ const (
 var (
 	arpIPs        flagArrayString
 	mqttClient    mqtt.Client
+	mu            sync.Mutex
 	lastSeenByIP  = make(map[string]time.Time, 0)
 	lastStateByIP = make(map[string]string, 0)
 )
@@ -98,8 +99,10 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 
 			ipString := ip.String()
 
+			mu.Lock()
 			lastSeenByIP[ipString] = time.Now()
 			lastStateByIP[ipString] = "1"
+			mu.Unlock()
 		}
 	}
 }
@@ -207,6 +210,7 @@ func expire() {
 		select {
 		case <-ticker.C:
 			now := time.Now()
+			mu.Lock()
 			for ip, lastSeen := range lastSeenByIP {
 				timeout := lastSeen.Add(timeoutDuration)
 				if timeout.Before(now) {
@@ -215,6 +219,7 @@ func expire() {
 					log.Printf("%v last seen at %v, expiring due to %v of silence", ip, lastSeen, timeoutDuration)
 				}
 			}
+			mu.Unlock()
 		}
 	}
 }
@@ -224,6 +229,7 @@ func publish() {
 	for {
 		select {
 		case <-ticker.C:
+			mu.Lock()
 			for ip, state := range lastStateByIP {
 				log.Printf("publishing %v state for %v", state, ip)
 				err := mqttClient.Publish(
@@ -236,6 +242,7 @@ func publish() {
 					log.Fatal(err)
 				}
 			}
+			mu.Unlock()
 		}
 	}
 }
@@ -292,10 +299,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	mu.Lock()
 	for _, ip := range arpIPs {
 		lastSeenByIP[ip] = time.Now().Add(-timeoutDuration)
 		lastStateByIP[ip] = "0"
 	}
+	mu.Unlock()
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
