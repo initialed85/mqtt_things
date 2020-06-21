@@ -33,7 +33,7 @@ import (
 //
 // for clarity this refers to https://github.com/google/gopacket/blob/master/LICENSE
 
-// unrelated warning: here be dragons
+// unrelated warning: here be untested dragons that don't cross compile
 
 type flagArrayString []string
 
@@ -226,7 +226,6 @@ func publish() {
 		case <-ticker.C:
 			for ip, state := range lastStateByIP {
 				log.Printf("publishing %v state for %v", state, ip)
-
 				err := mqttClient.Publish(
 					fmt.Sprintf("%v/%v/get", topicPrefix, ip),
 					mqtt.ExactlyOnce,
@@ -286,7 +285,7 @@ func main() {
 		break
 	}
 
-	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
+	mqttClient = mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 
 	err = mqttClient.Connect()
 	if err != nil {
