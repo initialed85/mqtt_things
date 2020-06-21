@@ -51,6 +51,27 @@ func (c *PersistentClient) resubscribeAll() error {
 	return nil
 }
 
+func (c *PersistentClient) isErrorBeingHandled() bool {
+	c.errorBeingHandledMu.Lock()
+	defer c.errorBeingHandledMu.Unlock()
+
+	return c.errorBeingHandled
+}
+
+func (c *PersistentClient) waitWhileErrorBeingHandled() {
+	for {
+		if c.isErrorBeingHandled() {
+			log.Printf("error being handled; waiting...")
+
+			time.Sleep(time.Second)
+
+			continue
+		}
+
+		break
+	}
+}
+
 func (c *PersistentClient) HandleError(client Client, err error) {
 	log.Printf("handling %+v for %+v...", err, client)
 
@@ -114,6 +135,8 @@ func (c *PersistentClient) Connect() error {
 }
 
 func (c *PersistentClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+	c.waitWhileErrorBeingHandled()
+
 	log.Printf("publishing %+v to %+v", payload, topic)
 
 	err := c.client.Publish(topic, qos, retained, payload)
@@ -128,6 +151,8 @@ func (c *PersistentClient) Publish(topic string, qos byte, retained bool, payloa
 }
 
 func (c *PersistentClient) Subscribe(topic string, qos byte, callback func(message Message)) error {
+	c.waitWhileErrorBeingHandled()
+
 	log.Printf("subscribing to %+v with %p", topic, callback)
 
 	err := c.client.Subscribe(topic, qos, callback)
