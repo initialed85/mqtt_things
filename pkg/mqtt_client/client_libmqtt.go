@@ -100,6 +100,10 @@ func (c *LibMQTTClient) Connect() error {
 }
 
 func (c *LibMQTTClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	qosLevel, err := getQosLevel(qos)
 	if err != nil {
 		return err
@@ -118,6 +122,10 @@ func (c *LibMQTTClient) Publish(topic string, qos byte, retained bool, payload i
 }
 
 func (c *LibMQTTClient) Subscribe(topic string, qos byte, callback func(message Message)) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	qosLevel, err := getQosLevel(qos)
 	if err != nil {
 		return err
@@ -144,12 +152,20 @@ func (c *LibMQTTClient) Subscribe(topic string, qos byte, callback func(message 
 }
 
 func (c *LibMQTTClient) Unsubscribe(topic string) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	c.client.Unsubscribe(topic)
 
 	return nil
 }
 
 func (c *LibMQTTClient) Disconnect() error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	c.client.Destroy(false)
 
 	c.client = nil

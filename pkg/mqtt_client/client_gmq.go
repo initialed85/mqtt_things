@@ -66,6 +66,10 @@ func (c *GMQClient) Connect() error {
 }
 
 func (c *GMQClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	return c.client.Publish(
 		&client.PublishOptions{
 			QoS:       qos,
@@ -77,6 +81,9 @@ func (c *GMQClient) Publish(topic string, qos byte, retained bool, payload inter
 }
 
 func (c *GMQClient) Subscribe(topic string, qos byte, callback func(message Message)) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
 	wrappedCallback := func(topicName, message []byte) {
 		callback(Message{
 			Received:  time.Now(),
@@ -98,6 +105,10 @@ func (c *GMQClient) Subscribe(topic string, qos byte, callback func(message Mess
 }
 
 func (c *GMQClient) Unsubscribe(topic string) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	return c.client.Unsubscribe(&client.UnsubscribeOptions{
 		TopicFilters: [][]byte{
 			[]byte(topic),
@@ -106,6 +117,10 @@ func (c *GMQClient) Unsubscribe(topic string) error {
 }
 
 func (c *GMQClient) Disconnect() error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	err := c.client.Disconnect()
 
 	c.client = nil

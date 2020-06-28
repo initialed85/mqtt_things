@@ -71,6 +71,10 @@ func (c *PahoClient) Connect() error {
 }
 
 func (c *PahoClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	token := c.client.Publish(topic, qos, retained, payload)
 	if token == nil {
 		return fmt.Errorf("nil token while publishing (%v, %v, %v, %v)", topic, qos, retained, payload)
@@ -84,6 +88,10 @@ func (c *PahoClient) Publish(topic string, qos byte, retained bool, payload inte
 }
 
 func (c *PahoClient) Subscribe(topic string, qos byte, callback func(message Message)) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	wrappedCallback := func(client paho.Client, message paho.Message) {
 		callback(Message{
 			Received:  time.Now(),
@@ -106,6 +114,10 @@ func (c *PahoClient) Subscribe(topic string, qos byte, callback func(message Mes
 }
 
 func (c *PahoClient) Unsubscribe(topic string) error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	token := c.client.Unsubscribe(topic)
 	if token == nil {
 		return fmt.Errorf("nil token while unsubscribing (%v)", topic)
@@ -119,6 +131,10 @@ func (c *PahoClient) Unsubscribe(topic string) error {
 }
 
 func (c *PahoClient) Disconnect() error {
+	if c.client == nil {
+		return fmt.Errorf("client is nil (probably not connected)")
+	}
+
 	if c.connectToken == nil {
 		return fmt.Errorf("nil token while disconnecting")
 	}
