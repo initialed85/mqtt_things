@@ -8,7 +8,7 @@ require (
 	github.com/goiiot/libmqtt v0.9.5
 	github.com/google/gopacket v1.1.17
 	github.com/google/uuid v1.1.1
-	github.com/initialed85/glue v0.0.0-20201208154835-a7b3777ff0a3
+	github.com/initialed85/glue v0.0.0-20201208171657-babd8992a59f
 	github.com/stretchr/testify v1.6.1
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/yosssi/gmq v0.0.1
