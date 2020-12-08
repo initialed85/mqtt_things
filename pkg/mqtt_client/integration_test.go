@@ -1,10 +1,11 @@
 package mqtt_client
 
 import (
-	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -16,6 +17,8 @@ func executeTestCase(t *testing.T, client Client) {
 	err := client.Connect()
 	assert.Nil(t, err)
 
+	time.Sleep(time.Millisecond * 100)
+
 	var capturedMessage *Message
 	callback := func(message Message) {
 		capturedMessage = &message
@@ -24,11 +27,15 @@ func executeTestCase(t *testing.T, client Client) {
 	err = client.Subscribe(testTopic, ExactlyOnce, callback)
 	assert.Nil(t, err)
 
+	time.Sleep(time.Millisecond * 100)
+
 	err = client.Publish(testTopic, ExactlyOnce, false, "Some data")
 	assert.Nil(t, err)
 
+	time.Sleep(time.Millisecond * 100)
+
 	started := time.Now()
-	timeout := time.Second * 10
+	timeout := time.Second * 5
 	timeoutTime := started.Add(timeout)
 
 	for timeoutTime.Sub(time.Now()) > 0 && capturedMessage == nil {
@@ -72,6 +79,14 @@ func TestLibMQTT(t *testing.T) {
 	EnableLibMQTTTestMode(testHost)
 
 	client := GetLibMQTTClient(testHost, "", "", func(client Client, err error) {
+		log.Fatal(err)
+	})
+
+	executeTestCase(t, client)
+}
+
+func TestGlue(t *testing.T) {
+	client := GetGlueClient(testHost, "", "", func(client Client, err error) {
 		log.Fatal(err)
 	})
 

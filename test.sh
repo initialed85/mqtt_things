@@ -24,6 +24,7 @@ if [[ "${*}" == "" ]]; then
   MQTT_CLIENT_PROVIDER=gmq go test -v ./pkg/mqtt_action_router
   MQTT_CLIENT_PROVIDER=paho go test -v ./pkg/mqtt_action_router
   MQTT_CLIENT_PROVIDER=libmqtt go test -v ./pkg/mqtt_action_router
+  MQTT_CLIENT_PROVIDER=glue go test -v ./pkg/mqtt_action_router
 
   go test -v ./pkg/aircons_client
   go test -v ./pkg/circumstances_engine

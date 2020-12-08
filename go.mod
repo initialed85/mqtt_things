@@ -8,7 +8,8 @@ require (
 	github.com/goiiot/libmqtt v0.9.5
 	github.com/google/gopacket v1.1.17
 	github.com/google/uuid v1.1.1
-	github.com/stretchr/testify v1.4.0
+	github.com/initialed85/glue v0.0.0-20201208153317-91f2a84d3cbb
+	github.com/stretchr/testify v1.6.1
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/yosssi/gmq v0.0.1
 	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
