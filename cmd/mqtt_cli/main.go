@@ -40,6 +40,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	time.Sleep(time.Millisecond * 100)
+
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
