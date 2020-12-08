@@ -15,4 +15,6 @@ type Message struct {
 	Payload   string
 }
 
-
+func (m *Message) MostlyEqual(other *Message) bool {
+	return m.Topic == other.Topic && m.Payload == other.Payload
+}

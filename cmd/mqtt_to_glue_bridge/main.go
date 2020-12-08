@@ -8,6 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/initialed85/glue/pkg/endpoint"
+	"github.com/initialed85/glue/pkg/topics"
+
 	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
@@ -33,17 +36,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	glueClient := mqtt.GetGlueClient(
-		"",
-		"",
-		"",
-		func(client mqtt.Client, err error) {},
-	)
-
-	err = glueClient.Connect()
+	glueClient, err := endpoint.NewManagerSimple()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	glueClient.Start()
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -54,10 +52,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		err = glueClient.Disconnect()
-		if err != nil {
-			log.Fatal(err)
-		}
+		glueClient.Stop()
 
 		os.Exit(0)
 	}()
@@ -69,9 +64,9 @@ func main() {
 		func(message mqtt.Message) {
 			err = glueClient.Publish(
 				message.Topic,
-				mqtt.ExactlyOnce,
-				false,
-				message.Payload,
+				"__mqtt_to_glue_bridge__",
+				time.Second,
+				[]byte(message.Payload),
 			)
 			if err != nil {
 				log.Printf("warning: %v", err)
@@ -85,13 +80,17 @@ func main() {
 	// feed stuff from glue into mqtt
 	err = glueClient.Subscribe(
 		"#",
-		mqtt.ExactlyOnce,
-		func(message mqtt.Message) {
+		"", // ignored for a wildcard subscription
+		func(message topics.Message) {
+			if message.TopicType == "__mqtt_to_glue_bridge__" {
+				return
+			}
+
 			err = mqttClient.Publish(
-				message.Topic,
+				message.TopicName,
 				mqtt.ExactlyOnce,
 				false,
-				message.Payload,
+				string(message.Payload),
 			)
 			if err != nil {
 				log.Printf("warning: %v", err)
