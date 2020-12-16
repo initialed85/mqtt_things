@@ -40,7 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Second)
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
