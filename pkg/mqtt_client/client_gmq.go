@@ -2,9 +2,10 @@ package mqtt_client
 
 import (
 	"fmt"
-	"github.com/yosssi/gmq/mqtt/client"
 	"log"
 	"time"
+
+	"github.com/yosssi/gmq/mqtt/client"
 )
 
 var GMQTestMode = false

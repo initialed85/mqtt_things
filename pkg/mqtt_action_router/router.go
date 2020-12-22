@@ -2,11 +2,12 @@ package mqtt_action_router
 
 import (
 	"fmt"
-	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"log"
 	"strconv"
 	"sync"
 	"time"
+
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
 type State int64

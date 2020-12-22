@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/initialed85/mqtt_things/pkg/lights_client"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
-	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/initialed85/mqtt_things/pkg/lights_client"
+	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
 func main() {
@@ -92,7 +93,7 @@ func main() {
 
 	lastStateByName := make(map[string]lights_client.State, 0)
 
-	ticker := time.NewTicker(time.Millisecond * 100)
+	ticker := time.NewTicker(time.Millisecond * 1000)
 	for {
 		select {
 		case <-ticker.C:

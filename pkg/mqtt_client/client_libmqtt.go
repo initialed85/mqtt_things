@@ -2,9 +2,10 @@ package mqtt_client
 
 import (
 	"fmt"
-	"github.com/goiiot/libmqtt"
 	"sync"
 	"time"
+
+	"github.com/goiiot/libmqtt"
 )
 
 var LibMQTTTestMode = false

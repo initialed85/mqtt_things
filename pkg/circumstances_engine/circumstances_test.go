@@ -1,10 +1,11 @@
 package circumstances_engine
 
 import (
-	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func getTimeForTesting(timeString string) time.Time {

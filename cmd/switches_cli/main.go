@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
-	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
-	"github.com/initialed85/mqtt_things/pkg/switches_client"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/initialed85/mqtt_things/pkg/mqtt_action_router"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
+	"github.com/initialed85/mqtt_things/pkg/switches_client"
 )
 
 type flagArrayString []string

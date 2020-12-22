@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
-	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
 func main() {

@@ -5,11 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
-	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
-
 	"log"
 	"net"
 	"os"
@@ -17,6 +12,12 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
 // copied heavily from https://raw.githubusercontent.com/google/gopacket/master/examples/arpscan/arpscan.go

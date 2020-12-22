@@ -1,10 +1,11 @@
 package relays_client
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/tarm/serial"
 	"log"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/tarm/serial"
 )
 
 const TestMessage = "relay 3 change to state on\r\n"

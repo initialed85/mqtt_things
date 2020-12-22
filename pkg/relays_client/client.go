@@ -2,11 +2,12 @@ package relays_client
 
 import (
 	"fmt"
-	"github.com/tarm/serial"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/tarm/serial"
 )
 
 var TestMode = false

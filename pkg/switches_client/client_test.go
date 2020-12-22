@@ -2,11 +2,12 @@ package switches_client
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (

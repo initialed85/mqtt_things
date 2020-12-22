@@ -3,9 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/initialed85/mqtt_things/pkg/circumstances_engine"
-	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
-
 	"log"
 	"os"
 	"os/signal"
@@ -14,6 +11,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/initialed85/mqtt_things/pkg/circumstances_engine"
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
 const (

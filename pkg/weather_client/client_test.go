@@ -2,12 +2,13 @@ package weather_client
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type TestHTTPServer struct {

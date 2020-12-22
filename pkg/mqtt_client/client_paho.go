@@ -2,8 +2,9 @@ package mqtt_client
 
 import (
 	"fmt"
-	paho "github.com/eclipse/paho.mqtt.golang"
 	"time"
+
+	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
 var PahoTestMode = false

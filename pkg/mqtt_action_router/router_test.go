@@ -1,11 +1,13 @@
 package mqtt_action_router
 
 import (
-	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
 const (

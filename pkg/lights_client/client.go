@@ -2,9 +2,10 @@ package lights_client
 
 import (
 	"fmt"
-	"github.com/amimof/huego"
 	"log"
 	"strings"
+
+	"github.com/amimof/huego"
 )
 
 type State int64
