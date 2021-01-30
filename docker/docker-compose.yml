@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.24.1
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: always
+
+  grafana:
+    image: grafana/grafana:7.3.7-ubuntu
+    volumes:
+      - ./grafana/config:/etc/grafana
+      - ./grafana/data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    restart: always

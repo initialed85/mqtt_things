@@ -13,3 +13,4 @@ go build -v -o bin/native/mqtt_cli cmd/mqtt_cli/main.go
 go build -v -o bin/native/sprinklers_cli cmd/sprinklers_cli/main.go
 go build -v -o bin/native/switches_cli cmd/switches_cli/main.go
 go build -v -o bin/native/weather_cli cmd/weather_cli/main.go
+go build -v -o bin/native/mqtt_to_glue_bridge cmd/mqtt_to_glue_bridge/main.go

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -106,7 +107,8 @@ func main() {
 				_, ok := lastStateByName[l.Name]
 				if !ok {
 					lastStateByName[l.Name] = l.State
-				} else if l.State == lastStateByName[l.Name] {
+				} else if reflect.DeepEqual(l.State, lastStateByName[l.Name]) {
+					log.Printf("no change for %v; deferring", l.Name)
 					continue
 				}
 

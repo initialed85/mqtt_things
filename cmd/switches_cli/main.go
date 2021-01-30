@@ -123,7 +123,7 @@ func main() {
 
 	lastStateByName := make(map[string]switches_client.State, 0)
 
-	ticker := time.NewTicker(time.Millisecond * 100)
+	ticker := time.NewTicker(time.Millisecond * 1000)
 	for {
 		select {
 		case <-ticker.C:

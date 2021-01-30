@@ -27,7 +27,7 @@ type ErrorResponse struct {
 }
 
 const (
-	topic = "home/#"
+	topic = "#"
 )
 
 var (

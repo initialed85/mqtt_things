@@ -101,8 +101,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// TODO: the loops oh god the loops
-
 	for {
 		time.Sleep(time.Second)
 	}

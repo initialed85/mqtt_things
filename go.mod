@@ -9,9 +9,8 @@ require (
 	github.com/google/gopacket v1.1.17
 	github.com/google/uuid v1.1.1
 	github.com/initialed85/glue v0.0.0-20201216125529-17c50ff1308e
+	github.com/prometheus/client_golang v1.9.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/yosssi/gmq v0.0.1
-	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
-	golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e // indirect
 )
