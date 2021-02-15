@@ -68,7 +68,7 @@ func main() {
 		time.Sleep(time.Second)
 	} else if *modePtr == "sub" {
 		callback := func(message mqtt.Message) {
-			log.Printf("%+v\n", message)
+			log.Printf("%#+v\n", message)
 		}
 
 		err = mqttClient.Subscribe(*topicPtr, mqtt.ExactlyOnce, callback)
