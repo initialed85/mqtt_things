@@ -76,6 +76,9 @@ func (a *action) actuate(state State) error {
 		actuate = a.off
 	} else if state == On {
 		actuate = a.on
+	} else if state == Unknown {
+		log.Printf("asked to acutate unknown state; assuming this is fine and skipping.")
+		return nil
 	} else {
 		return fmt.Errorf("expected state of 0 or 1 but got %v", state)
 	}

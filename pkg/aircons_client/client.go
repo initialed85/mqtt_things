@@ -203,10 +203,10 @@ func New(hostsAndNamesAndCodesNames []HostAndNameAndCodesName) (Client, error) {
 			return Client{}, err
 		}
 
-		err = aircon.Off()
-		if err != nil {
-			return Client{}, err
-		}
+		// err = aircon.Off()
+		// if err != nil {
+		// 	return Client{}, err
+		// }
 
 		airconByName[hostAndNameAndCodesName.Name] = &aircon
 	}

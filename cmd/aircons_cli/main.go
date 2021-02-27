@@ -105,7 +105,7 @@ func main() {
 			aircons_client.Arguments{Name: a.Name},
 			actionable.On,
 			actionable.Off,
-			mqtt_action_router.Off,
+			mqtt_action_router.Unknown,
 			fmt.Sprintf("home/inside/aircons/%v/state/get", a.Name),
 		)
 		if err != nil {

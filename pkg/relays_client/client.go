@@ -109,12 +109,17 @@ func Close(port PortInterface) error {
 const Delimiter = "relay %v change to state %v\r\n"
 
 type Client struct {
-	port PortInterface
-	mu   sync.Mutex
+	port          PortInterface
+	mu            sync.Mutex
+	tickerByRelay map[int64]*time.Ticker
+	doneByRelay   map[int64]chan bool
 }
 
 func New(port string, bitRate int) (*Client, error) {
-	r := &Client{}
+	r := &Client{
+		tickerByRelay: make(map[int64]*time.Ticker),
+		doneByRelay:   make(map[int64]chan bool),
+	}
 
 	var p PortInterface
 	var err error
@@ -145,9 +150,6 @@ func New(port string, bitRate int) (*Client, error) {
 func (c *Client) setState(relay int64, state string) error {
 	log.Printf("setting relay %v to %v", relay, state)
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	err := Write(c.port, fmt.Sprintf("%v,%v\r\n", relay, state))
 	if err != nil {
 		return err
@@ -175,12 +177,53 @@ func (c *Client) setState(relay int64, state string) error {
 }
 
 func (c *Client) On(relay int64) error {
-	return c.setState(relay, "on")
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ticker, tickerOK := c.tickerByRelay[relay]
+	done, doneOK := c.doneByRelay[relay]
+	if tickerOK || doneOK {
+		return nil
+	}
+
+	ticker = time.NewTicker(time.Second)
+	done = make(chan bool)
+
+	c.tickerByRelay[relay] = ticker
+	c.doneByRelay[relay] = done
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				_ = c.setState(relay, "off")
+				delete(c.tickerByRelay, relay)
+				delete(c.doneByRelay, relay)
+				return
+			case _ = <-ticker.C:
+				_ = c.setState(relay, "on")
+			}
+		}
+	}()
+
+	log.Printf("---- end start request")
+	return nil
 }
 
 func (c *Client) Off(relay int64) error {
-	return c.setState(relay, "off")
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
+	ticker, tickerOK := c.tickerByRelay[relay]
+	done, doneOK := c.doneByRelay[relay]
+	if !(tickerOK || doneOK) {
+		return nil
+	}
+
+	ticker.Stop()
+	done <- true
+
+	return nil
 }
 
 func (c *Client) Close() error {
