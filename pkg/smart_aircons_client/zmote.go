@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,7 @@ var TestURL string
 var HTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
+var mu sync.Mutex
 
 func enableTestMode(client *http.Client, url string) {
 	TestMode = true
@@ -23,6 +25,9 @@ func enableTestMode(client *http.Client, url string) {
 }
 
 func SendIR(host, code string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	log.Printf("sending %v to %v", code, host)
 
 	url := fmt.Sprintf("http://%v/uuid", host)

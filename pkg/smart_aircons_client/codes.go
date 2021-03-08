@@ -2,6 +2,7 @@ package smart_aircons_client
 
 import (
 	"fmt"
+	"log"
 )
 
 var (
@@ -93,7 +94,7 @@ func GetCode(name string, on bool, mode string, temperature int64) (string, erro
 
 	var codeName = ""
 
-	if !on {
+	if !on || mode == "off" {
 		codeName = "off"
 	} else if mode == "fan_only" {
 		codeName = "fan_only"
@@ -105,6 +106,8 @@ func GetCode(name string, on bool, mode string, temperature int64) (string, erro
 	if !ok {
 		return "", fmt.Errorf("%#+v not a recognized code for %#+v", code, name)
 	}
+
+	log.Printf("name=%#+v, codeName=%#+v, on=%#+v, mode=%#+v, temperature=%#+v, code=%#+v", name, codeName, on, mode, temperature, code)
 
 	return code, nil
 }

@@ -57,6 +57,8 @@ func (c *Client) setState(on bool, mode string, temperature int64) error {
 	var code string
 	var err error
 
+	log.Printf("setState(on=%#+v, mode=%#+v, temperature=%#+v)", on, mode, temperature)
+
 	code, err = GetCode(c.codes, on, mode, temperature)
 	if err != nil {
 		return fmt.Errorf("cannot call setState(%#+v, %#+v, %#+v) because: %v", on, mode, temperature, err)

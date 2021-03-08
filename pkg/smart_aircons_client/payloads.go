@@ -29,8 +29,8 @@ func PayloadToOn(payload string) (bool, error) {
 func ModeToPayload(mode string) (string, error) {
 	mode = strings.ToLower(strings.TrimSpace(mode))
 
-	if mode != "cool" && mode != "heat" && mode != "fan_only" {
-		return "", fmt.Errorf("%#+v not one of %#+v, %#+v or %#+v", mode, "cool", "heat", "fan_only")
+	if mode != "off" && mode != "cool" && mode != "heat" && mode != "fan_only" {
+		return "", fmt.Errorf("%#+v not one of %#+v, %#+v, %#+v or %#+v", mode, "off", "cool", "heat", "fan_only")
 	}
 
 	return mode, nil

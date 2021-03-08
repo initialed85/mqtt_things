@@ -4,34 +4,59 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 )
 
 const defaultOn bool = false
 const defaultMode string = "fan_only"
 const defaultTemperature int64 = 24
+const debounceDuration = time.Millisecond * 100
 
 type Model struct {
-	mu sync.Mutex
-
+	mu          sync.Mutex
+	calls       int64
 	on          bool
-	mode        string // "cool", "heat", "fan_only"
+	mode        string // "off", "cool", "heat", "fan_only"
 	temperature int64
-
-	setState func(on bool, mode string, temperature int64) error
+	setState    func(on bool, mode string, temperature int64) error
 }
 
 func NewModel(
 	setState func(on bool, mode string, temperature int64) error,
 ) *Model {
 	a := Model{
+		calls:       0,
 		on:          defaultOn,
 		mode:        defaultMode,
 		temperature: defaultTemperature,
-
-		setState: setState,
+		setState:    setState,
 	}
 
 	return &a
+}
+
+func (a *Model) debouncedSetState() {
+	a.calls++
+	calls := a.calls
+
+	go func() {
+		time.Sleep(debounceDuration)
+
+		a.mu.Lock()
+		defer a.mu.Unlock()
+
+		takeAction := calls == a.calls
+
+		if !takeAction {
+			log.Printf("state superseded (we're %#+v, now at %#+v); taking no action", calls, a.calls)
+			return
+		}
+
+		err := a.setState(a.on, a.mode, a.temperature)
+		if err != nil {
+			log.Printf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, a.mode, a.temperature, err)
+		}
+	}()
 }
 
 func (a *Model) SetOn(on bool) error {
@@ -39,16 +64,13 @@ func (a *Model) SetOn(on bool) error {
 	defer a.mu.Unlock()
 
 	if on == a.on {
-		return nil
-	}
-
-	err := a.setState(on, a.mode, a.temperature)
-	if err != nil {
-		log.Printf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, a.mode, a.temperature, err)
+		log.Printf("on already %#+v; no change", on)
 		return nil
 	}
 
 	a.on = on
+
+	a.debouncedSetState()
 
 	return nil
 }
@@ -57,21 +79,18 @@ func (a *Model) SetMode(mode string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if mode != "cool" && mode != "heat" && mode != "fan_only" {
-		return fmt.Errorf("%#+v not one of %#+v, %#+v or %#+v", mode, "cool", "heat", "fan_only")
+	if mode != "off" && mode != "cool" && mode != "heat" && mode != "fan_only" {
+		return fmt.Errorf("%#+v not one of %#+v, %#+v, %#+v or %#+v", mode, "off", "cool", "heat", "fan_only")
 	}
 
 	if mode == a.mode {
-		return nil
-	}
-
-	err := a.setState(a.on, mode, a.temperature)
-	if err != nil {
-		log.Printf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, a.mode, a.temperature, err)
+		log.Printf("mode already %#+v; no change", mode)
 		return nil
 	}
 
 	a.mode = mode
+
+	a.debouncedSetState()
 
 	return nil
 }
@@ -85,16 +104,13 @@ func (a *Model) SetTemperature(temperature int64) error {
 	}
 
 	if temperature == a.temperature {
-		return nil
-	}
-
-	err := a.setState(a.on, a.mode, temperature)
-	if err != nil {
-		log.Printf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, a.mode, a.temperature, err)
+		log.Printf("temperature already %#+v; no change", temperature)
 		return nil
 	}
 
 	a.temperature = temperature
+
+	a.debouncedSetState()
 
 	return nil
 }
