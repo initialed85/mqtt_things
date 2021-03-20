@@ -96,7 +96,9 @@ func main() {
 		err = mqttClient.Subscribe(
 			fmt.Sprintf("%v/#", topicPrefix),
 			mqtt.ExactlyOnce,
-			client.Handle,
+			func(message mqtt.Message) {
+				go client.Handle(message)
+			},
 		)
 		if err != nil {
 			log.Fatal(err)

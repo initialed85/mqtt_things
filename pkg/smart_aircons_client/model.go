@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"time"
 )
 
 const defaultOn bool = false
 const defaultMode string = "fan_only"
 const defaultTemperature int64 = 24
-const debounceDuration = time.Millisecond * 100
 
 type Model struct {
 	mu          sync.Mutex
-	calls       int64
 	on          bool
 	mode        string // "off", "cool", "heat", "fan_only"
 	temperature int64
@@ -25,7 +22,6 @@ func NewModel(
 	setState func(on bool, mode string, temperature int64) error,
 ) *Model {
 	a := Model{
-		calls:       0,
 		on:          defaultOn,
 		mode:        defaultMode,
 		temperature: defaultTemperature,
@@ -33,30 +29,6 @@ func NewModel(
 	}
 
 	return &a
-}
-
-func (a *Model) debouncedSetState() {
-	a.calls++
-	calls := a.calls
-
-	go func() {
-		time.Sleep(debounceDuration)
-
-		a.mu.Lock()
-		defer a.mu.Unlock()
-
-		takeAction := calls == a.calls
-
-		if !takeAction {
-			log.Printf("state superseded (we're %#+v, now at %#+v); taking no action", calls, a.calls)
-			return
-		}
-
-		err := a.setState(a.on, a.mode, a.temperature)
-		if err != nil {
-			log.Printf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, a.mode, a.temperature, err)
-		}
-	}()
 }
 
 func (a *Model) SetOn(on bool) error {
@@ -68,9 +40,12 @@ func (a *Model) SetOn(on bool) error {
 		return nil
 	}
 
-	a.on = on
+	err := a.setState(on, a.mode, a.temperature)
+	if err != nil {
+		return fmt.Errorf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", on, a.mode, a.temperature, err)
+	}
 
-	a.debouncedSetState()
+	a.on = on
 
 	return nil
 }
@@ -88,9 +63,12 @@ func (a *Model) SetMode(mode string) error {
 		return nil
 	}
 
-	a.mode = mode
+	err := a.setState(a.on, mode, a.temperature)
+	if err != nil {
+		return fmt.Errorf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, mode, a.temperature, err)
+	}
 
-	a.debouncedSetState()
+	a.mode = mode
 
 	return nil
 }
@@ -108,9 +86,12 @@ func (a *Model) SetTemperature(temperature int64) error {
 		return nil
 	}
 
-	a.temperature = temperature
+	err := a.setState(a.on, a.mode, temperature)
+	if err != nil {
+		return fmt.Errorf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, a.mode, temperature, err)
+	}
 
-	a.debouncedSetState()
+	a.temperature = temperature
 
 	return nil
 }
