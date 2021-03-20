@@ -32,21 +32,23 @@ func (c *PersistentClient) SetClient(client Client) {
 
 func (c *PersistentClient) unsubscribeAll() {
 	c.subscriptionByTopicMu.Lock()
+	defer c.subscriptionByTopicMu.Unlock()
+
 	for topic := range c.subscriptionByTopic {
 		_ = c.client.Unsubscribe(topic)
 	}
-	c.subscriptionByTopicMu.Unlock()
 }
 
 func (c *PersistentClient) resubscribeAll() error {
 	c.subscriptionByTopicMu.Lock()
+	defer c.subscriptionByTopicMu.Unlock()
+
 	for _, subscription := range c.subscriptionByTopic {
 		err := c.client.Subscribe(subscription.topic, subscription.qos, subscription.callback)
 		if err != nil {
 			return err
 		}
 	}
-	c.subscriptionByTopicMu.Unlock()
 
 	return nil
 }
