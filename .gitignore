@@ -1,0 +1,3 @@
+./build_for_deploy.sh
+./deploy.sh
+./scratch

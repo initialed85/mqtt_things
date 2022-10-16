@@ -130,7 +130,7 @@ func getSensors(host string, appID string) ([]BlendedSensor, error) {
 				blendedSensor.Daylight = sensor.State.Daylight
 				b = true
 			case "ZLLTemperature":
-				blendedSensor.Temperature = float64(sensor.State.Temperature) / 100
+				blendedSensor.Temperature = (float64(sensor.State.Temperature) / 100) + 2.0 // internet wisdom says they're out this much
 				c = true
 			}
 		}
