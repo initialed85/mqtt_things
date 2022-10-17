@@ -22,6 +22,6 @@ function build() {
     .
 }
 
-# build "sensors_cli" "sensors-cli"
-# build "smart_aircons_cli" "smart-aircons-cli"
+build "sensors_cli" "sensors-cli"
+build "smart_aircons_cli" "smart-aircons-cli"
 build "sprinklers_cli" "sprinklers-cli"
