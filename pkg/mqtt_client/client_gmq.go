@@ -35,13 +35,13 @@ func NewGMQClient(host, username, password string, errorHandler func(Client, err
 	}
 
 	c.connectOptions = client.ConnectOptions{
-		Network:         "tcp",
-		Address:         fmt.Sprintf("%v:1883", host),
+		Network: "tcp",
+		Address: fmt.Sprintf("%v:1883", host),
 		// CONNACKTimeout:  time.Second * 10,
 		// PINGRESPTimeout: time.Second * 10,
-		ClientID:        []byte(clientID),
-		UserName:        []byte(username),
-		Password:        []byte(password),
+		ClientID: []byte(clientID),
+		UserName: []byte(username),
+		Password: []byte(password),
 		// KeepAlive:       5,
 	}
 

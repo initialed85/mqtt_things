@@ -1,4 +1,4 @@
-FROM golang:1.18 AS builder
+FROM golang:1.20-buster AS builder
 
 ARG CMD_NAME
 
@@ -6,14 +6,14 @@ WORKDIR /srv/
 
 COPY go.mod /srv/go.mod
 COPY go.sum /srv/go.sum
-RUN --mount=type=cache,target=/root/.cache/go-build go mod download
+RUN go mod download
 
 COPY cmd /srv/cmd
 COPY pkg /srv/pkg
 
-RUN --mount=type=cache,target=/root/.cache/go-build go build -v -o entrypoint /srv/cmd/${CMD_NAME}/main.go
+RUN go build -v -o entrypoint /srv/cmd/${CMD_NAME}/main.go
 
-FROM golang:1.18 AS runner
+FROM golang:1.20-buster AS runner
 
 RUN apt-get update && apt-get install -y sqlite3
 

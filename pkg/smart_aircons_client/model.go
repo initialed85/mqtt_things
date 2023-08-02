@@ -63,11 +63,14 @@ func (a *Model) SetMode(mode string) error {
 		return nil
 	}
 
-	err := a.setState(a.on, mode, a.temperature)
+	on := mode != "off"
+
+	err := a.setState(on, mode, a.temperature)
 	if err != nil {
 		return fmt.Errorf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, mode, a.temperature, err)
 	}
 
+	a.on = on
 	a.mode = mode
 
 	return nil
@@ -86,12 +89,13 @@ func (a *Model) SetTemperature(temperature int64) error {
 		return nil
 	}
 
-	err := a.setState(a.on, a.mode, temperature)
+	err := a.setState(true, a.mode, temperature)
 	if err != nil {
 		return fmt.Errorf("warning: attempt to setState(%#+v, %#+v, %#+v) failed because: %v", a.on, a.mode, temperature, err)
 	}
 
 	a.temperature = temperature
+	a.on = true
 
 	return nil
 }

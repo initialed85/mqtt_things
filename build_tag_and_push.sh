@@ -14,7 +14,7 @@ function build() {
   _=${2?:second argument must be Docker image name part}
 
   docker buildx build \
-    --platform linux/amd64,linux/arm64 \
+    --platform linux/arm64 \
     --build-arg CMD_NAME="${1}" \
     -f docker/cli/Dockerfile \
     -t "initialed85/mqtt-things-${2}:latest" \

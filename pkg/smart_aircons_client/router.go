@@ -159,7 +159,7 @@ func (r *Router) Handle(message mqtt.Message) (mqtt.Message, bool) {
 	}
 
 	return mqtt.Message{
-		Topic: fmt.Sprintf("%v%v/%v", r.topicPrefix, infix, topicGetSuffix),
+		Topic:   fmt.Sprintf("%v%v/%v", r.topicPrefix, infix, topicGetSuffix),
 		Payload: message.Payload,
 	}, true
 }

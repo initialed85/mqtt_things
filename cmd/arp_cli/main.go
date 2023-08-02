@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -39,7 +40,7 @@ import (
 type flagArrayString []string
 
 func (f *flagArrayString) String() string {
-	return fmt.Sprintf("%d", f)
+	return strings.Join(*f, ", ")
 }
 
 func (f *flagArrayString) Set(value string) error {
@@ -201,8 +202,6 @@ func scan(iface *net.Interface) error {
 
 		time.Sleep(time.Second * 1)
 	}
-
-	return nil
 }
 
 func expire() {
