@@ -9,22 +9,31 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
+)
+
+const (
+	timeout = time.Second * 2
 )
 
 var (
 	DefaultKey = []byte{0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02}
 	DefaultIV  = []byte{0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58}
 
-	// TODO: fix these nasty globals
-	conn  *net.UDPConn
-	addr  *net.UDPAddr
-	count uint16
+	mu                 = new(sync.Mutex)
+	conn               *net.UDPConn
+	sourceAddr         *net.UDPAddr
+	sourceHardwareAddr *net.HardwareAddr
+	packetNumber       uint16
 )
 
 type DiscoveryResponse struct {
 	Type uint16
-	MAC  string
+	MAC  net.HardwareAddr
 	IP   net.IP
 	Port int
 }
@@ -35,18 +44,61 @@ type AuthorizationResponse struct {
 }
 
 func init() {
+	mu.Lock()
+	defer mu.Unlock()
+
 	listenAddr, err := net.ResolveUDPAddr("udp4", "0.0.0.0:0")
 	if err != nil {
 		panic(err)
 	}
 
-	// TODO: clean this up at shutdown somehow
 	conn, err = network.GetReceiverConn(listenAddr, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	count = uint16(rand.Uint32())
+	srcAddr, err := net.ResolveUDPAddr("udp4", conn.LocalAddr().String())
+	if err != nil {
+		panic(err)
+	}
+
+	sourceAddr = srcAddr
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		_ = <-sigs
+		_ = conn.Close()
+	}()
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		panic(err)
+	}
+
+	sourceHardwareAddr = &net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+
+loop:
+	for _, iface := range ifaces {
+		ifaceAddrs, err := iface.Addrs()
+		if err != nil {
+			panic(err)
+		}
+
+		for _, ifaceAddr := range ifaceAddrs {
+			ipNet := ifaceAddr.(*net.IPNet).IP
+			if ipNet == nil {
+				continue
+			}
+
+			if ifaceAddr.(*net.IPNet).IP.To4().Equal(sourceAddr.IP.To4()) {
+				sourceHardwareAddr = &iface.HardwareAddr
+				break loop
+			}
+		}
+	}
+
+	packetNumber = uint16(rand.Uint32())
 }
 
 func encrypt(plainText []byte, key []byte) (cipherText []byte, err error) {
@@ -92,16 +144,26 @@ func decrypt(cipherText []byte, key []byte) (plainText []byte, err error) {
 	return
 }
 
-func getPadding(payload []byte, start int, end int) {
+func setPadding(payload []byte, start int, end int) {
 	for i := start; i < end+1; i++ {
 		payload[i] = 0x00
 	}
 }
 
+func setBytes(payload []byte, bytes []byte, start int) {
+	for i := start; i < len(bytes); i++ {
+		payload[i] = bytes[i-start]
+	}
+}
+
 func getChecksum(payload []byte) int {
-	checkSum := 0xBEAF
+	checkSum := 0xbeaf
 	for i := 0; i < len(payload); i++ {
 		checkSum += int(payload[i])
+
+		if checkSum > 0xffff {
+			checkSum -= 0xffff
+		}
 	}
 
 	return checkSum
@@ -109,6 +171,9 @@ func getChecksum(payload []byte) int {
 
 // Discover returns a discovery response for each found device (ref.: https://github.com/mjg59/python-broadlink/blob/master/protocol.md#network-discovery)
 func Discover() (discoveryResponses []DiscoveryResponse, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	discoveryResponses = make([]DiscoveryResponse, 0)
 
 	srcAddr, err := net.ResolveUDPAddr("udp4", conn.LocalAddr().String())
@@ -116,12 +181,12 @@ func Discover() (discoveryResponses []DiscoveryResponse, err error) {
 		panic(err)
 	}
 
-	addr = srcAddr
+	sourceAddr = srcAddr
 
 	payload := make([]byte, 48)
 
 	// padding
-	getPadding(payload, 0x00, 0x07)
+	setPadding(payload, 0x00, 0x07)
 
 	// UTC offset
 	now := time.Now()
@@ -151,39 +216,35 @@ func Discover() (discoveryResponses []DiscoveryResponse, err error) {
 	payload[0x13] = uint8(now.Month())
 
 	// padding
-	getPadding(payload, 0x14, 0x17)
+	setPadding(payload, 0x14, 0x17)
 
 	// source IP
-	ip := addr.IP.To4()
-	for i := 0x18; i < 0x1b+1; i++ {
-		payload[i] = ip[i-0x18]
-	}
+	setBytes(payload, sourceAddr.IP.To4()[0:4], 0x18)
 
 	// source port
-	binary.LittleEndian.PutUint16(payload[0x1c:0x1d+1], uint16(addr.Port))
+	binary.LittleEndian.PutUint16(payload[0x1c:0x1d+1], uint16(sourceAddr.Port))
 
 	// padding
-	getPadding(payload, 0x1e, 0x1f)
+	setPadding(payload, 0x1e, 0x1f)
 
 	// checksum
 	binary.LittleEndian.PutUint16(payload[0x20:0x21+1], uint16(getChecksum(payload)))
 
 	// padding
-	getPadding(payload, 0x22, 0x25)
+	setPadding(payload, 0x22, 0x25)
 
 	// not sure
 	payload[0x26] = 0x06
 
 	// padding
-	getPadding(payload, 0x27, 0x2f)
+	setPadding(payload, 0x27, 0x2f)
 
 	dstAddr, err := net.ResolveUDPAddr("udp4", "255.255.255.255:80")
 	if err != nil {
 		return
 	}
 
-	// we'll wait 1 second for responses
-	err = conn.SetDeadline(time.Now().Add(time.Second))
+	err = conn.SetWriteDeadline(time.Now().Add(timeout))
 	if err != nil {
 		return
 	}
@@ -193,8 +254,7 @@ func Discover() (discoveryResponses []DiscoveryResponse, err error) {
 		return
 	}
 
-	// we'll wait 1 second for responses
-	err = conn.SetDeadline(time.Now().Add(time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
 		return
 	}
@@ -206,13 +266,19 @@ func Discover() (discoveryResponses []DiscoveryResponse, err error) {
 			break
 		}
 
-		mac := net.HardwareAddr(response[0x3a : 0x3f+1])
+		macBytes := make([]byte, 0)
+
+		for i := 0x3f; i >= 0x3a; i-- {
+			macBytes = append(macBytes, response[i])
+		}
+
+		mac := net.HardwareAddr(macBytes)
 
 		discoveryResponses = append(
 			discoveryResponses,
 			DiscoveryResponse{
 				Type: binary.LittleEndian.Uint16(response[0x34 : 0x35+1]),
-				MAC:  mac.String(),
+				MAC:  mac,
 				IP:   receiveAddr.IP,
 				Port: receiveAddr.Port,
 			},
@@ -224,6 +290,9 @@ func Discover() (discoveryResponses []DiscoveryResponse, err error) {
 
 // Command sends a payload to the given device and returns the response bytes (ref.: https://github.com/mjg59/python-broadlink/blob/master/protocol.md#command-packet-format)
 func Command(deviceType uint16, commandCode uint16, deviceID []byte, deviceIP net.IP, devicePort int, plainTextPayload []byte, key []byte) (response []byte, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	response = make([]byte, 0)
 
 	header := make([]byte, 56)
@@ -239,10 +308,12 @@ func Command(deviceType uint16, commandCode uint16, deviceID []byte, deviceIP ne
 	header[0x07] = 0x55
 
 	// padding
-	getPadding(header, 0x08, 0x1f)
+	setPadding(header, 0x08, 0x1f)
+
+	// checksum at 0x20 -> 0x21 later
 
 	// padding
-	getPadding(header, 0x22, 0x23)
+	setPadding(header, 0x22, 0x23)
 
 	// device type
 	binary.LittleEndian.PutUint16(header[0x24:0x25+1], deviceType)
@@ -250,25 +321,18 @@ func Command(deviceType uint16, commandCode uint16, deviceID []byte, deviceIP ne
 	// command code
 	binary.LittleEndian.PutUint16(header[0x26:0x27+1], commandCode)
 
-	// packet count
-	binary.LittleEndian.PutUint16(header[0x26:0x27+1], count)
-	count++
+	// packet packetNumber
+	binary.LittleEndian.PutUint16(header[0x28:0x29+1], packetNumber)
+	packetNumber++
 
-	// TODO: populate this
 	// local MAC
-	getPadding(header, 0x2a, 0x2f)
+	setBytes(header, (*sourceHardwareAddr)[0:6], 0x2a)
 
 	// device ID
-	actualDeviceID := []byte{0x00, 0x00, 0x00, 0x00}
-	if len(deviceID) == 4 {
-		actualDeviceID = deviceID
-	}
-	for i := 0; i < 4; i++ {
-		header[i+0x030] = actualDeviceID[i]
-	}
+	setBytes(header, deviceID[0:4], 0x30)
 
 	// padding
-	getPadding(header, 0x36, 0x37)
+	setPadding(header, 0x36, 0x37)
 
 	// checksum of unencrypted plainTextPayload
 	binary.LittleEndian.PutUint16(header[0x34:0x35+1], uint16(getChecksum(plainTextPayload)))
@@ -278,36 +342,51 @@ func Command(deviceType uint16, commandCode uint16, deviceID []byte, deviceIP ne
 		return
 	}
 
-	binary.LittleEndian.PutUint16(plainTextPayload[0x20:0x21+1], uint16(getChecksum(cipherTextPayload)))
+	request := append(header, cipherTextPayload...)
 
-	message := append(header, cipherTextPayload...)
+	// checksum of the whole request
+	binary.LittleEndian.PutUint16(plainTextPayload[0x20:0x21+1], uint16(getChecksum(request)))
 
 	dstAddr := net.UDPAddr{
 		IP:   deviceIP,
 		Port: devicePort,
 	}
 
-	// we'll wait 1 second for responses
-	err = conn.SetDeadline(time.Now().Add(time.Second))
+	log.Printf("sending %v bytes of %#+v to %#+v", len(request), request, dstAddr)
+
+	err = conn.SetWriteDeadline(time.Now().Add(timeout))
 	if err != nil {
 		return
 	}
 
-	_, err = conn.WriteTo(message, &dstAddr)
+	_, err = conn.WriteTo(request, &dstAddr)
 	if err != nil {
 		return
 	}
 
-	// we'll wait 1 second for responses
-	err = conn.SetDeadline(time.Now().Add(time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
 		return
 	}
 
-	_, _, err = conn.ReadFromUDP(response)
-	if err != nil {
-		return
+	var n int
+	for {
+		b := make([]byte, 65536)
+
+		n, _, err = conn.ReadFromUDP(b)
+		if err != nil {
+			err = nil
+			break
+		}
+
+		if n == 0 {
+			break
+		}
+
+		response = append(response, b[0:n]...)
 	}
+
+	log.Printf("received %v bytes of %#+v", len(response), response)
 
 	return
 }
@@ -317,32 +396,26 @@ func Authorize(deviceType uint16, deviceIP net.IP, devicePort int) (authorizatio
 	payload := make([]byte, 80)
 
 	// padding
-	for i := 0x00; i < 0x03+1; i++ {
-		payload[i] = 0x00
-	}
+	setPadding(payload, 0x00, 0x03)
 
 	// this device identifier
-	deviceIdentifier := []byte("initialed85!!!1")
-	for i := 0; i < 15; i++ {
-		payload[i+0x04] = deviceIdentifier[i]
-	}
+	setBytes(payload, []byte("initialed85!!!1"), 0x04)
 
 	// not sure
 	payload[0x13] = 0x01
 
 	// padding
-	getPadding(payload, 0x14, 0x2c)
+	setPadding(payload, 0x14, 0x2c)
 
 	// not sure
 	payload[0x2d] = 0x01
 
 	// this device name
 	deviceName := []byte("github.com/initialed85")
-	for i := 0; i < len(deviceName); i++ {
-		payload[0x30+i] = deviceName[i]
-	}
+	deviceName = append(deviceName, 0x00)
+	setBytes(payload, deviceName, 0x30)
 
-	response, err := Command(deviceType, 0x0065, []byte{}, deviceIP, devicePort, payload, DefaultKey)
+	response, err := Command(deviceType, 0x65, []byte{0x00, 0x00, 0x00, 0x00}, deviceIP, devicePort, payload, DefaultKey)
 	if err != nil {
 		return
 	}

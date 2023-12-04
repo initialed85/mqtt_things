@@ -1,3 +1,8 @@
-./build_for_deploy.sh
-./deploy.sh
-./scratch
+build_for_deploy.sh
+deploy.sh
+scratch
+.DS_Store
+docker/prometheus/data
+mqtt_things.iml
+.idea
+bin
