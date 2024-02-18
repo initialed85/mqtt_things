@@ -59,6 +59,21 @@ func (c *Client) setState(on bool, mode string, temperature int64) error {
 
 	log.Printf("setState(on=%#+v, mode=%#+v, temperature=%#+v)", on, mode, temperature)
 
+	if !c.router.IsGetCallbacks() {
+		if on && !c.model.on || ((mode == "cool" || mode == "heat") && mode != c.model.mode) {
+			log.Printf("need to go via fan_only for this weird state thing")
+			code, err = GetCode(c.codes, on, "fan_only", temperature)
+			if err != nil {
+				return fmt.Errorf("cannot call setState(%#+v, %#+v, %#+v) (on way to setState(%#+v, %#+v, %#+v)) because: %v", on, "fan_only", temperature, on, mode, temperature, err)
+			}
+
+			err = c.sendIR(c.host, code)
+			if err != nil {
+				return fmt.Errorf("cannot call setState(%#+v, %#+v, %#+v) (on way to setState(%#+v, %#+v, %#+v)) because: %v", on, "fan_only", temperature, on, mode, temperature, err)
+			}
+		}
+	}
+
 	code, err = GetCode(c.codes, on, mode, temperature)
 	if err != nil {
 		return fmt.Errorf("cannot call setState(%#+v, %#+v, %#+v) because: %v", on, mode, temperature, err)

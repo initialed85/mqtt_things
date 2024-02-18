@@ -35,8 +35,7 @@ func NewRouter(
 	temperatureHandler func(int64) error,
 ) *Router {
 	r := Router{
-		topicPrefix: strings.TrimRight(topicPrefix, "/") + "/",
-
+		topicPrefix:            strings.TrimRight(topicPrefix, "/") + "/",
 		invokeCallbacksForGets: false,
 		onHandler:              onHandler,
 		modeHandler:            modeHandler,
@@ -100,6 +99,13 @@ func (r *Router) DisableGetCallbacks() {
 	defer r.mu.Unlock()
 
 	r.invokeCallbacksForGets = false
+}
+
+func (r *Router) IsGetCallbacks() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.invokeCallbacksForGets
 }
 
 func (r *Router) Handle(message mqtt.Message) (mqtt.Message, bool) {
