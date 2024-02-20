@@ -361,8 +361,9 @@ drain:
 	for {
 		select {
 		case response := <-responses:
-			mac := net.HardwareAddr(response.Payload[0x3a:0x3f])
-			slices.Reverse(mac)
+			rawMac := response.Payload[0x3a:0x40]
+			slices.Reverse(rawMac)
+			mac := net.HardwareAddr(rawMac)
 
 			if response.Err != nil {
 				log.Fatal(response.Err)

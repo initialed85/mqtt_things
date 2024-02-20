@@ -28,13 +28,13 @@ func init() {
 
 	startupMu.Lock()
 	go func() {
-		time.Sleep(time.Second * 6)
+		time.Sleep(time.Second * 11)
 		startupMu.Unlock()
 	}()
 
 	go func() {
 		for {
-			possibleDevices, err := client.Discover(time.Second * 5)
+			possibleDevices, err := client.Discover(time.Second * 10)
 			if err != nil {
 				log.Printf("warning: %v", err)
 			}
@@ -74,8 +74,6 @@ func init() {
 
 				devices = possibleDevices
 			}
-
-			time.Sleep(time.Second * 8)
 		}
 	}()
 }

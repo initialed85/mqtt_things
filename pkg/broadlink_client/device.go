@@ -1,6 +1,7 @@
 package broadlink_client
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"slices"
@@ -43,7 +44,7 @@ func (d *Device) doCommand(commandType uint16, commandPayload []byte, key []byte
 		return nil, nil, err
 	}
 
-	rawMac := []byte(d.MAC)
+	rawMac := bytes.Clone([]byte(d.MAC))
 	slices.Reverse(rawMac)
 
 	rawID, err := packInt(d.ID)

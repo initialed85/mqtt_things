@@ -7,9 +7,11 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
+	"github.com/initialed85/mqtt_things/pkg/broadlink_client"
 	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 	"github.com/initialed85/mqtt_things/pkg/sensors_client"
 )
@@ -23,6 +25,7 @@ const (
 	darkAffix        = "dark"
 	daylightAffix    = "daylight"
 	temperatureAffix = "temperature"
+	humidityAffix    = "humidity"
 )
 
 func getIntStringFromBool(someBool bool) string {
@@ -34,7 +37,13 @@ func getIntStringFromBool(someBool bool) string {
 }
 
 func getTopicFriendlyName(name string) string {
-	return strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(name, " ", "-"), "'", ""))
+	name = strings.ReplaceAll(name, " ", "-")
+	name = strings.ReplaceAll(name, "_", "-")
+	name = strings.ReplaceAll(name, "'", "")
+	name = strings.ReplaceAll(name, "’", "") // what is this unicode bs
+	name = strings.ToLower(name)
+
+	return name
 }
 
 func main() {
@@ -60,8 +69,13 @@ func main() {
 		log.Fatal("bridgeHost flag empty")
 	}
 
+	broadlinkClient, err := broadlink_client.NewClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
-	err := mqttClient.Connect()
+	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -82,6 +96,34 @@ func main() {
 
 	ticker := time.NewTicker(cyclePeriod)
 
+	mu := new(sync.Mutex)
+	knownDevices := make([]*broadlink_client.Device, 0)
+
+	go func() {
+		for {
+			possibleDevices, err := broadlinkClient.Discover(time.Second * 10)
+			if err != nil {
+				log.Printf("warning: failed to get discover broadlink devices: %v", err)
+				continue
+			}
+
+			probableDevices := make([]*broadlink_client.Device, 0)
+			for _, possibleDevice := range possibleDevices {
+				err = possibleDevice.Auth(time.Second * 1)
+				if err != nil {
+					log.Printf("warning: failed to auth %#+v: %v", possibleDevice, err)
+					continue
+				}
+
+				probableDevices = append(probableDevices, possibleDevice)
+			}
+
+			mu.Lock()
+			knownDevices = probableDevices
+			mu.Unlock()
+		}
+	}()
+
 	for {
 		select {
 		case <-ticker.C:
@@ -93,7 +135,11 @@ func main() {
 
 			log.Printf("sensors = %#+v\n", sensors)
 
+			topicFriendlyNames := make(map[string]bool)
+
 			for _, sensor := range sensors {
+				topicFriendlyNames[getTopicFriendlyName(sensor.Name)] = true
+
 				err = mqttClient.Publish(
 					fmt.Sprintf(
 						"%v/%v/%v/%v",
@@ -173,6 +219,83 @@ func main() {
 					mqtt.ExactlyOnce,
 					false,
 					fmt.Sprintf("%v", sensor.Temperature),
+				)
+				if err != nil {
+					log.Print(err)
+					break
+				}
+			}
+
+			mu.Lock()
+			devices := knownDevices
+			mu.Unlock()
+
+			for _, device := range devices {
+				sensorData, err := device.GetSensorData(time.Second * 1)
+				if err != nil {
+					authErr := device.Auth(time.Second * 1)
+					if err != nil {
+						log.Printf("warning: got %v trying to auth after %v", authErr, err)
+						continue
+					}
+
+					sensorData, err = device.GetSensorData(time.Second * 1)
+					if err != nil {
+						log.Printf("warning: failed to get sensor data: %v", err)
+						continue
+					}
+				}
+
+				topicFriendlyName := ""
+
+				for i := 0; i < 64; i++ {
+					possibleTopicFriendlyName := getTopicFriendlyName(device.Name)
+					if i != 0 {
+						possibleTopicFriendlyName = fmt.Sprintf("%v-%v", getTopicFriendlyName(device.Name), i)
+					}
+
+					if topicFriendlyNames[possibleTopicFriendlyName] {
+						continue
+					}
+
+					topicFriendlyName = possibleTopicFriendlyName
+					break
+				}
+
+				if topicFriendlyName == "" {
+					log.Printf("warning: failed to find unconflicting topic friendly name for %#+v", device)
+					continue
+				}
+
+				topicFriendlyNames[topicFriendlyName] = true
+
+				err = mqttClient.Publish(
+					fmt.Sprintf(
+						"%v/%v/%v/%v",
+						topicPrefix,
+						topicFriendlyName,
+						temperatureAffix,
+						topicSuffix,
+					),
+					mqtt.ExactlyOnce,
+					false,
+					fmt.Sprintf("%v", sensorData.Temperature),
+				)
+				if err != nil {
+					log.Print(err)
+					break
+				}
+				err = mqttClient.Publish(
+					fmt.Sprintf(
+						"%v/%v/%v/%v",
+						topicPrefix,
+						topicFriendlyName,
+						humidityAffix,
+						topicSuffix,
+					),
+					mqtt.ExactlyOnce,
+					false,
+					fmt.Sprintf("%v", sensorData.Humidity),
 				)
 				if err != nil {
 					log.Print(err)

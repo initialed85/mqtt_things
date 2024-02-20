@@ -1,4 +1,4 @@
-FROM golang:1.20-buster AS builder
+FROM golang:1.21-bullseye AS builder
 
 ARG CMD_NAME
 
@@ -13,7 +13,7 @@ COPY pkg /srv/pkg
 
 RUN go build -v -o entrypoint /srv/cmd/${CMD_NAME}/main.go
 
-FROM golang:1.20-buster AS runner
+FROM golang:1.21-bullseye AS runner
 
 RUN apt-get update && apt-get install -y sqlite3
 

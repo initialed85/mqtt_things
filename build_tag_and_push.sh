@@ -9,7 +9,20 @@ function cleanup() {
 }
 trap cleanup EXIT
 
-function build() {
+function build_amd64() {
+  _=${1?:first argument must be CMD_NAME}
+  _=${2?:second argument must be Docker image name part}
+
+  docker buildx build \
+    --platform linux/amd64 \
+    --build-arg CMD_NAME="${1}" \
+    -f docker/cli/Dockerfile \
+    -t "initialed85/mqtt-things-${2}:latest" \
+    --push \
+    .
+}
+
+function build_arm64() {
   _=${1?:first argument must be CMD_NAME}
   _=${2?:second argument must be Docker image name part}
 
@@ -22,6 +35,6 @@ function build() {
     .
 }
 
-build "sensors_cli" "sensors-cli"
-build "smart_aircons_cli" "smart-aircons-cli"
-build "sprinklers_cli" "sprinklers-cli"
+build_amd64 "sensors_cli" "sensors-cli"
+build_amd64 "smart_aircons_cli" "smart-aircons-cli"
+build_arm64 "sprinklers_cli" "sprinklers-cli"
