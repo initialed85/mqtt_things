@@ -15,7 +15,7 @@ type Client struct {
 	topicPrefix string
 	host        string
 	codes       string
-	sendIR      func(string, string) error
+	sendIR      func(string, any) error
 	publish     func(topic string, qos byte, retained bool, payload interface{}) error
 }
 
@@ -23,7 +23,7 @@ func NewClient(
 	topicPrefix string,
 	host string,
 	codes string,
-	sendIR func(string, string) error,
+	sendIR func(string, any) error,
 	publish func(topic string, qos byte, retained bool, payload interface{}) error,
 ) *Client {
 	c := Client{
@@ -54,14 +54,13 @@ func NewClient(
 }
 
 func (c *Client) setState(on bool, mode string, temperature int64) error {
-	var code string
+	var code any
 	var err error
 
 	log.Printf("setState(on=%#+v, mode=%#+v, temperature=%#+v)", on, mode, temperature)
 
 	if !c.router.IsGetCallbacks() {
 		if on && !c.model.on || ((mode == "cool" || mode == "heat") && mode != c.model.mode) {
-			log.Printf("need to go via fan_only for this weird state thing")
 			code, err = GetCode(c.codes, on, "fan_only", temperature)
 			if err != nil {
 				return fmt.Errorf("cannot call setState(%#+v, %#+v, %#+v) (on way to setState(%#+v, %#+v, %#+v)) because: %v", on, "fan_only", temperature, on, mode, temperature, err)

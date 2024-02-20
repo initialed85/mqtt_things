@@ -3,11 +3,10 @@ package smart_aircons_client
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -16,7 +15,6 @@ var TestURL string
 var HTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
-var mu sync.Mutex
 
 func enableTestMode(client *http.Client, url string) {
 	TestMode = true
@@ -24,11 +22,8 @@ func enableTestMode(client *http.Client, url string) {
 	HTTPClient = client
 }
 
-func SendIR(host, code string) error {
-	mu.Lock()
-	defer mu.Unlock()
-
-	log.Printf("sending %v to %v", code, host)
+func ZmoteSendIR(host string, code any) error {
+	log.Printf("sending %#+v to zmote %v", code, host)
 
 	url := fmt.Sprintf("http://%v/uuid", host)
 
@@ -46,7 +41,7 @@ func SendIR(host, code string) error {
 		_ = resp.Body.Close()
 	}()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}

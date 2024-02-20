@@ -3,7 +3,7 @@ package weather_client
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -71,7 +71,7 @@ func getWeather(lat, lon float64, appID string) (Result, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return weather, err
 	}

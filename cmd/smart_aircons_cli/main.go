@@ -89,7 +89,19 @@ func main() {
 			topicPrefix,
 			airconHost,
 			airconCodesName,
-			smart_aircons_client.SendIR,
+			func(hostOrMac string, rawCode any) error {
+				switch code := rawCode.(type) {
+				case string:
+					return smart_aircons_client.ZmoteSendIR(hostOrMac, code)
+				case []byte:
+					return smart_aircons_client.BroadlinkSendIR(hostOrMac, code)
+				}
+
+				return fmt.Errorf(
+					"expected %#+v to be of type string (for zmote) or type []byte (for broadlink)",
+					rawCode,
+				)
+			},
 			mqttClient.Publish,
 		)
 		client.EnableRestoreMode()
