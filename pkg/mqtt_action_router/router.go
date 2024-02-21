@@ -120,7 +120,7 @@ func (a *action) actuate(state State) error {
 	for i := 0; i < 4; i++ {
 		publishErr = a.client.Publish(a.getTopic, mqtt.ExactlyOnce, true, payload)
 		if publishErr != nil {
-			log.Printf("failed to publish %v to %q becuase %v; retry %v",
+			log.Printf("failed to publish %v to %q because %v; retry %v",
 				payload, a.getTopic, publishErr, i,
 			)
 

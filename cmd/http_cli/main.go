@@ -27,7 +27,7 @@ type ErrorResponse struct {
 }
 
 const (
-	topic = "#"
+	topic = "+/#"
 )
 
 var (
@@ -167,7 +167,7 @@ func main() {
 
 	http.HandleFunc("/", handler)
 
-	err = http.ListenAndServe(":8079", nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%v", *portPtr), nil)
 	if err != nil {
 		log.Fatal(err)
 	}

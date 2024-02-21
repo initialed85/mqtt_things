@@ -59,7 +59,7 @@ func main() {
 
 	// feed stuff from mqtt into glue
 	err = mqttClient.Subscribe(
-		"#",
+		"+/#",
 		mqtt.ExactlyOnce,
 		func(message mqtt.Message) {
 			err = glueClient.Publish(

@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -123,9 +124,17 @@ loop:
 	}
 
 	go func() {
+		defer func() {
+			r := recover()
+			if r != nil {
+				log.Printf("warning: recovered from panic: %v", r)
+			}
+		}()
+
 		for {
 			select {
 			case <-c.ctx.Done():
+				log.Printf("warning: read goroutine canceled")
 				return
 			default:
 			}
@@ -135,19 +144,26 @@ loop:
 			c.mu.Unlock()
 
 			if conn == nil {
+				log.Printf("warning: read goroutine found conn to be nil; giving up")
 				return
 			}
 
 			b := make([]byte, 1024)
 
+			c.conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 			n, srcAddr, err := c.conn.ReadFromUDP(b)
 			if err != nil {
+
+				if strings.Contains(err.Error(), "i/o timeout") {
+					continue
+				}
+
+				log.Printf("warning: failed to read from conn: %v; giving up", err)
 				_ = c.Close()
 				return
 			}
 
 			payload := b[:n]
-			// log.Printf("<<< %v bytes from %v; %#+v", len(payload), srcAddr.String(), payload)
 
 			if len(payload) < 0x2a {
 				log.Printf("warning: message not long enough to contain sequence number")
@@ -224,6 +240,7 @@ loop:
 		for {
 			select {
 			case <-c.ctx.Done():
+				log.Printf("warning: write goroutine canceled")
 				return
 			case request := <-c.uhandledRequests:
 				c.mu.Lock()
@@ -231,6 +248,7 @@ loop:
 				c.mu.Unlock()
 
 				if conn == nil {
+					log.Printf("warning: write goroutine found conn to be nil; giving up")
 					return
 				}
 
@@ -251,8 +269,6 @@ loop:
 					}
 					continue
 				}
-
-				// log.Printf(">>> %v bytes to %v; %#+v", len(request.Payload), request.DstAddr.String(), request.Payload)
 			}
 		}
 	}()
@@ -302,6 +318,14 @@ func (c *Client) getRequest(dstAddr *net.UDPAddr, payload []byte, sequenceNumber
 }
 
 func (c *Client) send(request *Request) error {
+	c.mu.Lock()
+	conn := c.conn
+	c.mu.Unlock()
+
+	if conn == nil {
+		return fmt.Errorf("send found conn to be unexpectedly nil; client dead?")
+	}
+
 	select {
 	case c.uhandledRequests <- request:
 	default:
@@ -328,6 +352,14 @@ func (c *Client) doCall(request *Request, timeout time.Duration) (*Response, err
 }
 
 func (c *Client) Discover(timeout time.Duration) ([]*Device, error) {
+	c.mu.Lock()
+	conn := c.conn
+	c.mu.Unlock()
+
+	if conn == nil {
+		return nil, fmt.Errorf("discover found conn to be unexpectedly nil; client dead?")
+	}
+
 	dstAddr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%v:%v", "255.255.255.255", "80"))
 	if err != nil {
 		return nil, err
@@ -361,12 +393,16 @@ drain:
 	for {
 		select {
 		case response := <-responses:
+			if response.Payload == nil {
+				return nil, fmt.Errorf("response payload unexpectedly empty; socket failed?")
+			}
+
 			rawMac := response.Payload[0x3a:0x40]
 			slices.Reverse(rawMac)
 			mac := net.HardwareAddr(rawMac)
 
 			if response.Err != nil {
-				log.Fatal(response.Err)
+				return nil, response.Err
 			}
 
 			device := Device{

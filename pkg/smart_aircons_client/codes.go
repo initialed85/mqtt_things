@@ -123,7 +123,7 @@ func GetCode(name string, on bool, mode string, temperature int64) (any, error) 
 
 	var codeName = ""
 
-	if !on {
+	if !on || mode == "off" {
 		mode = "off"
 		codeName = mode
 	} else {
@@ -137,7 +137,7 @@ func GetCode(name string, on bool, mode string, temperature int64) (any, error) 
 
 	code, ok = codes[codeName]
 	if !ok {
-		return "", fmt.Errorf("%#+v not a recognized code for %#+v", code, name)
+		return "", fmt.Errorf("%#+v not a recognized code for %#+v", codeName, name)
 	}
 
 	log.Printf("name=%#+v, codeName=%#+v, on=%#+v, mode=%#+v, temperature=%#+v, code=%#+v", name, codeName, on, mode, temperature, code)

@@ -52,7 +52,7 @@ func main() {
 	gaugeByTopic := make(map[string]prometheus.Gauge, 0)
 
 	err = mqttClient.Subscribe(
-		"#",
+		"+/#",
 		mqtt.ExactlyOnce,
 		func(message mqtt.Message) {
 			topic := message.Topic

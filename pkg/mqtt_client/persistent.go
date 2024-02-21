@@ -142,11 +142,8 @@ func (c *PersistentClient) Publish(topic string, qos byte, retained bool, payloa
 	log.Printf("publishing %+v to %+v", payload, topic)
 
 	err := c.client.Publish(topic, qos, retained, payload)
-
 	if err != nil {
 		log.Printf("failed to publish because %+v", err)
-	} else {
-		log.Printf("published")
 	}
 
 	return err

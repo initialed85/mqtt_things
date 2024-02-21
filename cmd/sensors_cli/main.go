@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -17,7 +16,7 @@ import (
 )
 
 const (
-	cyclePeriod      = time.Second * 1
+	cyclePeriod      = time.Millisecond * 1000
 	topicPrefix      = "home/inside/environment"
 	topicSuffix      = "get"
 	presenceAffix    = "presence"
@@ -69,16 +68,18 @@ func main() {
 		log.Fatal("bridgeHost flag empty")
 	}
 
-	broadlinkClient, err := broadlink_client.NewClient()
+	broadlinkClient, err := broadlink_client.NewPersistentClient()
 	if err != nil {
 		log.Fatal(err)
 	}
+	time.Sleep(time.Second * 1)
 
 	mqttClient := mqtt.GetMQTTClient(*hostPtr, *usernamePtr, *passwordPtr)
 	err = mqttClient.Connect()
 	if err != nil {
 		log.Fatal(err)
 	}
+	time.Sleep(time.Second * 1)
 
 	c := make(chan os.Signal, 16)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -93,36 +94,9 @@ func main() {
 	}()
 
 	sensorsClient := sensors_client.New(*bridgeHost, *apiKeyPtr)
+	time.Sleep(time.Second * 1)
 
 	ticker := time.NewTicker(cyclePeriod)
-
-	mu := new(sync.Mutex)
-	knownDevices := make([]*broadlink_client.Device, 0)
-
-	go func() {
-		for {
-			possibleDevices, err := broadlinkClient.Discover(time.Second * 10)
-			if err != nil {
-				log.Printf("warning: failed to get discover broadlink devices: %v", err)
-				continue
-			}
-
-			probableDevices := make([]*broadlink_client.Device, 0)
-			for _, possibleDevice := range possibleDevices {
-				err = possibleDevice.Auth(time.Second * 1)
-				if err != nil {
-					log.Printf("warning: failed to auth %#+v: %v", possibleDevice, err)
-					continue
-				}
-
-				probableDevices = append(probableDevices, possibleDevice)
-			}
-
-			mu.Lock()
-			knownDevices = probableDevices
-			mu.Unlock()
-		}
-	}()
 
 	for {
 		select {
@@ -226,24 +200,18 @@ func main() {
 				}
 			}
 
-			mu.Lock()
-			devices := knownDevices
-			mu.Unlock()
+			devices := broadlinkClient.GetDevices()
+			failures := 0
 
 			for _, device := range devices {
-				sensorData, err := device.GetSensorData(time.Second * 1)
+				sensorData, err := device.GetSensorData(time.Second * 5)
 				if err != nil {
-					authErr := device.Auth(time.Second * 1)
-					if err != nil {
-						log.Printf("warning: got %v trying to auth after %v", authErr, err)
-						continue
-					}
-
-					sensorData, err = device.GetSensorData(time.Second * 1)
-					if err != nil {
-						log.Printf("warning: failed to get sensor data: %v", err)
-						continue
-					}
+					log.Printf("warning: failed to get sensor data for %v @ %v (%#+v): %v",
+						device.MAC.String(), device.Addr.IP.String(), device.Name,
+						err,
+					)
+					failures += 1
+					continue
 				}
 
 				topicFriendlyName := ""
@@ -301,6 +269,10 @@ func main() {
 					log.Print(err)
 					break
 				}
+			}
+
+			if failures == len(devices) {
+				broadlinkClient.RequestRestart()
 			}
 		}
 	}

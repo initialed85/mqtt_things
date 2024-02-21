@@ -55,7 +55,7 @@ func (r *Router) handleOn(payload interface{}) {
 	log.Printf("invoking %#+v handler with %#+v", "on", on)
 	err = r.onHandler(on)
 	if err != nil {
-		log.Printf("warning: failed to invoke %#+v handler with %#+v becuase: %v", "on", on, err)
+		log.Printf("warning: failed to invoke %#+v handler with %#+v because: %v", "on", on, err)
 	}
 }
 
@@ -69,7 +69,7 @@ func (r *Router) handleMode(payload interface{}) {
 	log.Printf("invoking %#+v handler with %#+v", "mode", mode)
 	err = r.modeHandler(mode)
 	if err != nil {
-		log.Printf("warning: failed to invoke %#+v handler with %#+v becuase: %v", "mode", mode, err)
+		log.Printf("warning: failed to invoke %#+v handler with %#+v because: %v", "mode", mode, err)
 	}
 }
 
@@ -83,7 +83,7 @@ func (r *Router) handleTemperature(payload interface{}) {
 	log.Printf("invoking %#+v handler with %#+v", "temperature", temperature)
 	err = r.temperatureHandler(temperature)
 	if err != nil {
-		log.Printf("warning: failed to invoke %#+v handler with %#+v becuase: %v", "temperature", temperature, err)
+		log.Printf("warning: failed to invoke %#+v handler with %#+v because: %v", "temperature", temperature, err)
 	}
 }
 

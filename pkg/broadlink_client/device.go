@@ -25,6 +25,7 @@ type Device struct {
 	LastSeen        time.Time
 	ID              int32
 	Key             []byte
+	requestRestart  func()
 }
 
 func (d *Device) doCommand(commandType uint16, commandPayload []byte, key []byte, timeout time.Duration) (responseHeader []byte, responsePayload []byte, err error) {
@@ -103,6 +104,16 @@ func (d *Device) doCommand(commandType uint16, commandPayload []byte, key []byte
 	responsePayload = response.Payload[0x38:]
 
 	return
+}
+
+func (d *Device) RequestRestart() error {
+	if d.requestRestart == nil {
+		return fmt.Errorf("requestRestart is nil; Device is probably not backed by PersistentClient")
+	}
+
+	d.requestRestart()
+
+	return nil
 }
 
 func (d *Device) Auth(timeout time.Duration) error {

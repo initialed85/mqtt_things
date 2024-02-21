@@ -106,6 +106,8 @@ func main() {
 		)
 		client.EnableRestoreMode()
 
+		time.Sleep(time.Second * 1)
+
 		err = mqttClient.Subscribe(
 			fmt.Sprintf("%v/#", topicPrefix),
 			mqtt.ExactlyOnce,

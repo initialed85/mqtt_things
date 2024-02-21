@@ -1,48 +1,16 @@
 package broadlink_client
 
 import (
-	"net"
+	"log"
 	"testing"
 	"time"
 
-	"github.com/initialed85/glue/pkg/network"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBroadlinkClient(t *testing.T) {
-	listenAddr, err := net.ResolveUDPAddr("udp4", "0.0.0.0:0")
+	c, err := NewClient()
 	require.NoError(t, err)
-
-	conn, err := network.GetReceiverConn(listenAddr, nil)
-	require.NoError(t, err)
-
-	sourceAddr, err := net.ResolveUDPAddr("udp4", conn.LocalAddr().String())
-	require.NoError(t, err)
-
-	ifaces, err := net.Interfaces()
-	require.NoError(t, err)
-
-	sourceHardwareAddr := &net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-
-loop:
-	for _, iface := range ifaces {
-		ifaceAddrs, err := iface.Addrs()
-		require.NoError(t, err)
-
-		for _, ifaceAddr := range ifaceAddrs {
-			ipNet := ifaceAddr.(*net.IPNet).IP
-			if ipNet == nil {
-				continue
-			}
-
-			if ifaceAddr.(*net.IPNet).IP.To4().Equal(sourceAddr.IP.To4()) {
-				sourceHardwareAddr = &iface.HardwareAddr
-				break loop
-			}
-		}
-	}
-
-	_ = sourceHardwareAddr
 
 	t.Run("getChecksum", func(t *testing.T) {
 		payload := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0xe8, 0x07, 0x26, 0x0b, 0x18, 0x02, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
@@ -88,12 +56,21 @@ loop:
 
 		expectedPayload := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0xe8, 0x07, 0x39, 0x0b, 0x18, 0x02, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 
-		payload, err := getDiscoveryPayload(now, sourceAddr, 1)
+		payload, err := getDiscoveryPayload(now, c.sourceAddr, 1)
 		require.NoError(t, err)
 
 		require.Equal(t, len(payload), len(expectedPayload))
 		require.Equal(t, expectedPayload[:0x1c], payload[:0x1c])
 		require.Equal(t, expectedPayload[0x26:0x28], payload[0x26:0x28])
 		require.Equal(t, expectedPayload[0x29], payload[0x29])
+	})
+
+	t.Run("getNextSequenceNumber", func(t *testing.T) {
+		for i := 0; i < 65536; i++ {
+			nextSequenceNumber := c.getNextSequenceNumber()
+			log.Printf("%#+v", nextSequenceNumber)
+		}
+
+		require.True(t, false)
 	})
 }
