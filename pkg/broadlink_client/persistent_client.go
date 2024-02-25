@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -18,14 +17,16 @@ type PersistentClient struct {
 	mu          *sync.Mutex
 	client      *Client
 	restart     chan bool
-	deviceByMAC map[string]*Device
+	restartMu   *sync.Mutex
+	deviceByMAC map[string]*PersistentDevice
 }
 
 func NewPersistentClient() (*PersistentClient, error) {
 	c := PersistentClient{
 		mu:          new(sync.Mutex),
 		restart:     make(chan bool),
-		deviceByMAC: make(map[string]*Device),
+		deviceByMAC: make(map[string]*PersistentDevice),
+		restartMu:   new(sync.Mutex),
 	}
 
 	c.ctx, c.cancel = context.WithCancel(context.Background())
@@ -42,6 +43,10 @@ func NewPersistentClient() (*PersistentClient, error) {
 				return
 			case <-c.restart:
 			}
+
+			log.Printf("handling requested restart...")
+
+			c.restartMu.Lock()
 
 			for i := 0; i < 10; i++ {
 				err = c.init()
@@ -60,7 +65,20 @@ func NewPersistentClient() (*PersistentClient, error) {
 						i+1, 10, err,
 					)
 				}
+
+				log.Printf(
+					"attempt %v/%v to init succeeded; sleeping a little...",
+					i+1, 10,
+				)
+
+				break
 			}
+
+			time.Sleep(time.Second * 1)
+
+			c.restartMu.Unlock()
+
+			log.Printf("requested restart done")
 		}
 	}()
 
@@ -83,63 +101,59 @@ func NewPersistentClient() (*PersistentClient, error) {
 				continue
 			}
 
-			hadAnySuccess := false
-
 			devices, err := c.client.Discover(timeout)
 			if err == nil {
 				for _, device := range devices {
 					c.mu.Lock()
-					existingDevice, ok := c.deviceByMAC[device.MAC.String()]
+					persistentDevice, ok := c.deviceByMAC[device.MAC.String()]
+					c.mu.Unlock()
+
 					if !ok {
+						persistentDevice = FromDeviceAndPersistentClient(device, &c)
+
 						log.Printf("discovered %v @ %v (%#+v)",
-							device.MAC.String(), device.Addr.IP.String(), device.Name,
+							persistentDevice.MAC.String(), persistentDevice.Addr.IP.String(), persistentDevice.Name,
 						)
-					}
-					c.mu.Unlock()
 
-					err = device.Auth(time.Second * 5)
-					if err != nil {
-						log.Printf(
-							"warning: failed to auth %v @ %v (%#+v): %v; ignoring...",
-							device.MAC.String(), device.Addr.IP.String(), device.Name,
-							err,
-						)
-						continue
-					} else {
-						if existingDevice == nil || !slices.Equal(existingDevice.Key, device.Key) {
-							log.Printf("authenticated %v @ %v (%#+v) - key is %#+v",
-								device.MAC.String(), device.Addr.IP.String(), device.Name, device.Key,
+						err = persistentDevice.Auth(time.Second * 5)
+						if err != nil {
+							log.Printf(
+								"warning: failed to auth %v @ %v (%#+v): %v; ignoring...",
+								persistentDevice.MAC.String(), persistentDevice.Addr.IP.String(), persistentDevice.Name,
+								err,
 							)
+							continue
 						}
+
+						log.Printf("authenticated %v @ %v (%#+v) - key is %#+v",
+							persistentDevice.MAC.String(), persistentDevice.Addr.IP.String(), persistentDevice.Name, persistentDevice.Key,
+						)
+
+						c.mu.Lock()
+						c.deviceByMAC[device.MAC.String()] = persistentDevice
+						c.mu.Unlock()
 					}
 
-					device.requestRestart = c.RequestRestart
+					persistentDevice.device.Addr = device.Addr
+					persistentDevice.device.Name = device.Name
+					persistentDevice.device.LastSeen = device.LastSeen
 
-					c.mu.Lock()
-					c.deviceByMAC[device.MAC.String()] = device
-					c.mu.Unlock()
-
-					hadAnySuccess = true
+					persistentDevice.Addr = device.Addr
+					persistentDevice.Name = device.Name
+					persistentDevice.LastSeen = device.LastSeen
 				}
-			}
-
-			if len(devices) > 0 && !hadAnySuccess {
-				log.Printf("warning: found %v devices but auth'd none of them; restarting...", len(devices))
-				select {
-				case c.restart <- true:
-					time.Sleep(time.Second * 1)
-				default:
-					time.Sleep(time.Second * 5)
-				}
+			} else {
+				log.Printf("warning: failed to discover devices: %v", err)
+				c.requestRestart()
 			}
 
 			c.mu.Lock()
 			existingDevices := maps.Values(c.deviceByMAC)
-			for _, device := range existingDevices {
-				if time.Since(device.LastSeen) > time.Second*30 {
-					delete(c.deviceByMAC, device.MAC.String())
+			for _, persistentDevice := range existingDevices {
+				if time.Since(persistentDevice.LastSeen) > time.Second*30 {
+					delete(c.deviceByMAC, persistentDevice.MAC.String())
 					log.Printf("expired %v @ %v (%#+v)",
-						device.MAC.String(), device.Addr.IP.String(), device.Name,
+						persistentDevice.MAC.String(), persistentDevice.Addr.IP.String(), persistentDevice.Name,
 					)
 				}
 			}
@@ -172,9 +186,28 @@ func (c *PersistentClient) init() error {
 		return err
 	}
 
+	for _, persistentDevice := range c.deviceByMAC {
+		persistentDevice.device.client = c.client
+	}
+
 	log.Printf("init done.")
 
 	return nil
+}
+
+func (c *PersistentClient) requestRestart() {
+	select {
+	case c.restart <- true:
+		log.Printf("accepted restart request")
+	default:
+		log.Printf("rejected restart request (must be one in-progress)")
+	}
+}
+
+func (c *PersistentClient) waitForAnyRestart() {
+	c.mu.Lock()
+	func() {}() // noop
+	c.mu.Unlock()
 }
 
 func (c *PersistentClient) Close() {
@@ -189,21 +222,14 @@ func (c *PersistentClient) Close() {
 	}
 }
 
-func (c *PersistentClient) RequestRestart() {
-	select {
-	case c.restart <- true:
-	default:
-	}
-}
-
-func (c *PersistentClient) GetDevices() []*Device {
+func (c *PersistentClient) GetDevices() []*PersistentDevice {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	return maps.Values(c.deviceByMAC)
 }
 
-func (c *PersistentClient) GetDeviceForMac(mac string) (*Device, error) {
+func (c *PersistentClient) GetDeviceForMac(mac string) (*PersistentDevice, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -215,17 +241,17 @@ func (c *PersistentClient) GetDeviceForMac(mac string) (*Device, error) {
 	return device, nil
 }
 
-func (c *PersistentClient) GetDeviceForIP(ip string) (*Device, error) {
+func (c *PersistentClient) GetDeviceForIP(ip string) (*PersistentDevice, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	ips := make([]string, 0)
-	for _, device := range c.deviceByMAC {
-		if device.Addr.IP.String() == ip {
-			return device, nil
+	for _, persistentDevice := range c.deviceByMAC {
+		if persistentDevice.device.Addr.IP.String() == ip {
+			return persistentDevice, nil
 		}
 
-		ips = append(ips, device.Addr.IP.String())
+		ips = append(ips, persistentDevice.device.Addr.IP.String())
 	}
 
 	return nil, fmt.Errorf("failed to find device for IP %v; know about %v", ip, strings.Join(ips, ", "))

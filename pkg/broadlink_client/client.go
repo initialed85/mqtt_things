@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -144,8 +145,9 @@ loop:
 			c.mu.Unlock()
 
 			if conn == nil {
-				log.Printf("warning: read goroutine found conn to be nil; giving up")
-				return
+				log.Printf("warning: read goroutine found conn to be nil; skipping...")
+				time.Sleep(time.Second * 1)
+				continue
 			}
 
 			b := make([]byte, 1024)
@@ -158,9 +160,9 @@ loop:
 					continue
 				}
 
-				log.Printf("warning: failed to read from conn: %v; giving up", err)
-				_ = c.Close()
-				return
+				log.Printf("warning: failed to read from conn: %v; skipping...", err)
+				time.Sleep(time.Second * 1)
+				continue
 			}
 
 			payload := b[:n]
@@ -235,6 +237,7 @@ loop:
 			request.Responses <- response
 		}
 	}()
+	runtime.Gosched()
 
 	go func() {
 		for {
@@ -248,8 +251,9 @@ loop:
 				c.mu.Unlock()
 
 				if conn == nil {
-					log.Printf("warning: write goroutine found conn to be nil; giving up")
-					return
+					log.Printf("warning: write goroutine found conn to be nil; skipping...")
+					time.Sleep(time.Second * 1)
+					continue
 				}
 
 				c.mu.Lock()
@@ -272,6 +276,7 @@ loop:
 			}
 		}
 	}()
+	runtime.Gosched()
 
 	return c, nil
 }

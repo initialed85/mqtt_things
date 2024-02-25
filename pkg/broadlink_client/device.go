@@ -2,6 +2,7 @@ package broadlink_client
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"slices"
@@ -15,17 +16,15 @@ type SensorData struct {
 }
 
 type Device struct {
-	mu              *sync.Mutex
-	client          *Client
-	isAuthenticated bool
-	Name            string
-	Type            uint16
-	MAC             net.HardwareAddr
-	Addr            net.UDPAddr
-	LastSeen        time.Time
-	ID              int32
-	Key             []byte
-	requestRestart  func()
+	mu       *sync.Mutex
+	client   *Client
+	Name     string
+	Type     uint16
+	MAC      net.HardwareAddr
+	Addr     net.UDPAddr
+	LastSeen time.Time
+	ID       int32
+	Key      []byte
 }
 
 func (d *Device) doCommand(commandType uint16, commandPayload []byte, key []byte, timeout time.Duration) (responseHeader []byte, responsePayload []byte, err error) {
@@ -106,14 +105,46 @@ func (d *Device) doCommand(commandType uint16, commandPayload []byte, key []byte
 	return
 }
 
-func (d *Device) RequestRestart() error {
-	if d.requestRestart == nil {
-		return fmt.Errorf("requestRestart is nil; Device is probably not backed by PersistentClient")
+func (d *Device) Discover(timeout time.Duration) error {
+	sequenceNumber := d.client.getNextSequenceNumber()
+
+	commandPayload, err := getDiscoveryPayload(time.Now(), d.client.sourceAddr, sequenceNumber)
+	if err != nil {
+		return err
 	}
 
-	d.requestRestart()
+	responses := make(chan *Response, 65536)
 
-	return nil
+	err = d.client.send(d.client.getRequest(&d.Addr, commandPayload, sequenceNumber, responses))
+	if err != nil {
+		return err
+	}
+
+	select {
+	case response := <-responses:
+		if response.Payload == nil {
+			return fmt.Errorf("response payload unexpectedly empty; socket failed?")
+		}
+
+		rawMac := response.Payload[0x3a:0x40]
+		slices.Reverse(rawMac)
+		mac := net.HardwareAddr(rawMac)
+
+		if response.Err != nil {
+			return response.Err
+		}
+
+		d.Name = string(bytes.Split(response.Payload[0x40:], []byte{0x00})[0])
+		d.Type = binary.LittleEndian.Uint16(response.Payload[0x34:0x36])
+		d.MAC = mac
+		d.LastSeen = response.ReceivedAt
+
+		return nil
+	case <-time.After(timeout):
+		break
+	}
+
+	return fmt.Errorf("call timed out waiting for response after %v", timeout)
 }
 
 func (d *Device) Auth(timeout time.Duration) error {
@@ -144,8 +175,6 @@ func (d *Device) Auth(timeout time.Duration) error {
 		return fmt.Errorf("key %#+v failed self-test: %v", d.Key, err)
 	}
 
-	d.isAuthenticated = true
-
 	return nil
 }
 
@@ -172,7 +201,7 @@ func (d *Device) checkAuthentication() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if !d.isAuthenticated {
+	if len(d.Key) == 0 {
 		return fmt.Errorf("not authenticated; have you called .Auth()?")
 	}
 

@@ -128,7 +128,6 @@ func main() {
 				)
 				if err != nil {
 					log.Print(err)
-					break
 				}
 
 				err = mqttClient.Publish(
@@ -145,7 +144,6 @@ func main() {
 				)
 				if err != nil {
 					log.Print(err)
-					break
 				}
 
 				err = mqttClient.Publish(
@@ -162,7 +160,6 @@ func main() {
 				)
 				if err != nil {
 					log.Print(err)
-					break
 				}
 
 				err = mqttClient.Publish(
@@ -179,7 +176,6 @@ func main() {
 				)
 				if err != nil {
 					log.Print(err)
-					break
 				}
 
 				err = mqttClient.Publish(
@@ -196,12 +192,10 @@ func main() {
 				)
 				if err != nil {
 					log.Print(err)
-					break
 				}
 			}
 
 			devices := broadlinkClient.GetDevices()
-			failures := 0
 
 			for _, device := range devices {
 				sensorData, err := device.GetSensorData(time.Second * 5)
@@ -210,7 +204,6 @@ func main() {
 						device.MAC.String(), device.Addr.IP.String(), device.Name,
 						err,
 					)
-					failures += 1
 					continue
 				}
 
@@ -251,8 +244,8 @@ func main() {
 				)
 				if err != nil {
 					log.Print(err)
-					break
 				}
+
 				err = mqttClient.Publish(
 					fmt.Sprintf(
 						"%v/%v/%v/%v",
@@ -267,12 +260,7 @@ func main() {
 				)
 				if err != nil {
 					log.Print(err)
-					break
 				}
-			}
-
-			if failures == len(devices) {
-				broadlinkClient.RequestRestart()
 			}
 		}
 	}

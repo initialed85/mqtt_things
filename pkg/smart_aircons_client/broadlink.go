@@ -9,23 +9,10 @@ import (
 	broadlink_client "github.com/initialed85/mqtt_things/pkg/broadlink_client"
 )
 
-var (
-	client *broadlink_client.PersistentClient
-)
+func BroadlinkSendIR(host string, rawCode any) error {
+	host = strings.ToLower(strings.TrimSpace(host))
 
-func init() {
-	var err error
-
-	client, err = broadlink_client.NewPersistentClient()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func BroadlinkSendIR(hostOrMac string, rawCode any) error {
-	hostOrMac = strings.ToLower(strings.TrimSpace(hostOrMac))
-
-	log.Printf("sending %#+v to broadlink %v", rawCode, hostOrMac)
+	log.Printf("sending %#+v to broadlink %v", rawCode, host)
 
 	code, ok := rawCode.([]byte)
 	if !ok {
@@ -35,17 +22,14 @@ func BroadlinkSendIR(hostOrMac string, rawCode any) error {
 		)
 	}
 
-	device, err := client.GetDeviceForIP(hostOrMac)
+	device, err := broadlink_client.FromHost(host)
 	if err != nil {
-		device, err = client.GetDeviceForMac(hostOrMac)
-		if err != nil {
-			return fmt.Errorf("failed to find device for %#+v: %v", hostOrMac, err)
-		}
+		return err
 	}
 
 	err = device.SendIR(code, time.Second*5)
 	if err != nil {
-		return fmt.Errorf("failed to to send IR to %#+v: %v", hostOrMac, err)
+		return fmt.Errorf("failed to to send IR to %#+v: %v", host, err)
 	}
 
 	return nil

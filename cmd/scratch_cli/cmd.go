@@ -8,13 +8,12 @@ import (
 )
 
 func main() {
-	client, err := broadlink_client.NewPersistentClient()
+	devices, err := broadlink_client.Discover(time.Second * 5)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer client.Close()
 
-	for {
-		time.Sleep(time.Second * 1)
+	for _, device := range devices {
+		log.Printf("%v\t%v\t%v", device.MAC.String(), device.Addr.IP.String(), device.Name)
 	}
 }
