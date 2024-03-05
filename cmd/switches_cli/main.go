@@ -146,6 +146,7 @@ func main() {
 					mqtt.ExactlyOnce,
 					true,
 					fmt.Sprintf("%v", s.State),
+					true,
 				)
 				if err != nil {
 					log.Fatal(err)

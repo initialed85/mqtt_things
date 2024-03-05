@@ -100,7 +100,7 @@ func (c *LibMQTTClient) Connect() error {
 	return connErr
 }
 
-func (c *LibMQTTClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+func (c *LibMQTTClient) Publish(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error {
 	if c.client == nil {
 		return fmt.Errorf("client is nil (probably not connected)")
 	}

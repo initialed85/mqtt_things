@@ -79,7 +79,7 @@ func main() {
 
 	// feed stuff from glue into mqtt
 	err = glueClient.Subscribe(
-		"#",
+		"+/#",
 		"", // ignored for a wildcard subscription
 		func(message topics.Message) {
 			if message.TopicType == "__mqtt_to_glue_bridge__" {

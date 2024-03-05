@@ -221,6 +221,7 @@ func main() {
 						mqtt.ExactlyOnce,
 						true,
 						circumstanceAndTopic.Circumstance,
+						true,
 					)
 					if err != nil {
 						log.Fatal(err)

@@ -48,9 +48,8 @@ func callback(message mqtt.Message) {
 	url = fmt.Sprintf("/%v", url)
 
 	lock.Lock()
-	defer lock.Unlock()
-
 	topicPayloadByUrl[url] = TopicPayload{time.Now(), message.Payload}
+	lock.Unlock()
 }
 
 func writeError(statusCode int, w http.ResponseWriter, reason string) {
@@ -67,10 +66,10 @@ func writeError(statusCode int, w http.ResponseWriter, reason string) {
 }
 
 func writeAll(w http.ResponseWriter) {
-	lock.Lock()
-	defer lock.Unlock()
 
+	lock.RLock()
 	buf, err := json.MarshalIndent(topicPayloadByUrl, "", "    ")
+	lock.RUnlock()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,10 +110,9 @@ func handler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	lock.Lock()
-	defer lock.Unlock()
-
+	lock.RLock()
 	topicPayload, ok := topicPayloadByUrl[url]
+	lock.RUnlock()
 	if !ok {
 		writeError(http.StatusBadRequest, w, fmt.Sprintf("TopicPayload for %v not known", url))
 

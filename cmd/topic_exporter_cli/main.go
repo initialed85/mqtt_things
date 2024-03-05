@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -57,10 +58,19 @@ func main() {
 		func(message mqtt.Message) {
 			topic := message.Topic
 
-			value, err := strconv.ParseFloat(message.Payload, 64)
-			if err != nil {
-				log.Printf("couldn't parse %#+v from %#+v to a float64", message.Payload, topic)
-				return
+			var value float64
+
+			switch strings.TrimSpace(strings.ToLower(message.Payload)) {
+			case "yes", "true", "y", "t":
+				value = 1.0
+			case "no", "false", "n", "f":
+				value = 0.0
+			default:
+				value, err = strconv.ParseFloat(message.Payload, 64)
+				if err != nil {
+					log.Printf("couldn't parse %#+v from %#+v to a float64", message.Payload, topic)
+					return
+				}
 			}
 
 			log.Printf("setting guage for %#+v to %#+v", topic, value)

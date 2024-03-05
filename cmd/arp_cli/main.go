@@ -237,6 +237,7 @@ func publish() {
 					mqtt.ExactlyOnce,
 					false,
 					state,
+					true,
 				)
 				if err != nil {
 					log.Fatal(err)

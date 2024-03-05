@@ -107,8 +107,6 @@ func main() {
 				break
 			}
 
-			log.Printf("sensors = %#+v\n", sensors)
-
 			topicFriendlyNames := make(map[string]bool)
 
 			for _, sensor := range sensors {

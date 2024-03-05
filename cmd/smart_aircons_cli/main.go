@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -104,9 +104,6 @@ func main() {
 			},
 			mqttClient.Publish,
 		)
-		client.EnableRestoreMode()
-
-		time.Sleep(time.Second * 1)
 
 		err = mqttClient.Subscribe(
 			fmt.Sprintf("%v/#", topicPrefix),
@@ -122,14 +119,38 @@ func main() {
 		clients = append(clients, client)
 	}
 
+	for _, client := range clients {
+		client.EnableRestoreMode()
+	}
+
 	time.Sleep(time.Second)
 
 	for _, client := range clients {
 		client.DisableRestoreMode()
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	time.Sleep(time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		t := time.NewTicker(time.Second * 1)
+		defer t.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				for _, client := range clients {
+					err = client.Update()
+					if err != nil {
+						log.Fatalf("failed to update %#+v; err: %v", client, err)
+					}
+				}
+			}
+		}
+	}()
 
 	c := make(chan os.Signal, 16)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -140,8 +161,8 @@ func main() {
 			log.Print(err)
 		}
 
-		wg.Done()
+		cancel()
 	}()
 
-	wg.Wait()
+	<-ctx.Done()
 }

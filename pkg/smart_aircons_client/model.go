@@ -99,3 +99,10 @@ func (a *Model) SetTemperature(temperature int64) error {
 
 	return nil
 }
+
+func (a *Model) GetState() (bool, string, int64) {
+	a.mu.Lock()
+	a.mu.Unlock()
+
+	return a.on, a.mode, a.temperature
+}

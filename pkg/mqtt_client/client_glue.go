@@ -42,7 +42,7 @@ func (c *GlueClient) Connect() error {
 	return nil
 }
 
-func (c *GlueClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+func (c *GlueClient) Publish(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error {
 	stringPayload := payload.(string)
 	bytePayload := []byte(stringPayload)
 

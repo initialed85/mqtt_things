@@ -109,8 +109,6 @@ func (r *Router) IsGetCallbacks() bool {
 }
 
 func (r *Router) Handle(message mqtt.Message) (mqtt.Message, bool) {
-	log.Printf("handling %#+v for %#+v", message.Payload, message.Topic)
-
 	if !strings.HasPrefix(message.Topic, r.topicPrefix) {
 		log.Printf("warning: ignoring message with unrecognized topic %#+v", message.Topic)
 		return mqtt.Message{}, false
@@ -145,6 +143,8 @@ func (r *Router) Handle(message mqtt.Message) (mqtt.Message, bool) {
 			return mqtt.Message{}, false
 		}
 	}
+
+	log.Printf("handling %#+v for %#+v", message.Payload, message.Topic)
 
 	// route the message
 	infix := strings.ToLower(strings.TrimSpace(infixAndSuffix[0]))

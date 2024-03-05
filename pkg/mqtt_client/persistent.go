@@ -136,17 +136,28 @@ func (c *PersistentClient) Connect() error {
 	return err
 }
 
-func (c *PersistentClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+func (c *PersistentClient) Publish(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error {
 	c.waitWhileErrorBeingHandled()
 
-	log.Printf("publishing %+v to %+v", payload, topic)
+	actualQuiet := false
+	if len(quiet) > 0 {
+		actualQuiet = quiet[0]
+	}
+
+	if !actualQuiet {
+		log.Printf("publishing %+v to %+v", payload, topic)
+	}
 
 	err := c.client.Publish(topic, qos, retained, payload)
 	if err != nil {
-		log.Printf("failed to publish because %+v", err)
+		if !actualQuiet {
+			log.Printf("failed to publish because %+v", err)
+		}
+
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (c *PersistentClient) Subscribe(topic string, qos byte, callback func(message Message)) error {

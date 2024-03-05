@@ -66,7 +66,7 @@ func (c *GMQClient) Connect() error {
 	return c.client.Connect(&c.connectOptions)
 }
 
-func (c *GMQClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+func (c *GMQClient) Publish(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error {
 	if c.client == nil {
 		return fmt.Errorf("client is nil (probably not connected)")
 	}

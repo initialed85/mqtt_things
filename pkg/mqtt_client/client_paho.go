@@ -71,7 +71,7 @@ func (c *PahoClient) Connect() error {
 	return c.connectToken.Error()
 }
 
-func (c *PahoClient) Publish(topic string, qos byte, retained bool, payload interface{}) error {
+func (c *PahoClient) Publish(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error {
 	if c.client == nil {
 		return fmt.Errorf("client is nil (probably not connected)")
 	}

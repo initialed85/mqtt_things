@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -69,8 +68,6 @@ func get(url string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-
-	log.Printf("%v", string(body))
 
 	return body, nil
 }

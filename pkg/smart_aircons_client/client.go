@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	mqtt "github.com/initialed85/mqtt_things/pkg/mqtt_client"
 )
 
 type Client struct {
+	mu *sync.Mutex
+
 	router *Router
 	model  *Model
 
@@ -16,7 +19,7 @@ type Client struct {
 	host        string
 	codes       string
 	sendIR      func(string, any) error
-	publish     func(topic string, qos byte, retained bool, payload interface{}) error
+	publish     func(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error
 }
 
 func NewClient(
@@ -24,9 +27,10 @@ func NewClient(
 	host string,
 	codes string,
 	sendIR func(string, any) error,
-	publish func(topic string, qos byte, retained bool, payload interface{}) error,
+	publish func(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error,
 ) *Client {
 	c := Client{
+		mu:          new(sync.Mutex),
 		topicPrefix: topicPrefix,
 		host:        host,
 		codes:       codes,
@@ -102,8 +106,49 @@ func (c *Client) Handle(message mqtt.Message) {
 		return
 	}
 
+	c.mu.Lock()
 	err := c.publish(outgoingMessage.Topic, mqtt.ExactlyOnce, true, outgoingMessage.Payload)
+	c.mu.Unlock()
+
 	if err != nil {
 		log.Printf("warning: failed to publish %#+v because: %v", outgoingMessage, err)
 	}
+}
+
+func (c *Client) Update() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	rawOn, mode, temperature := c.model.GetState()
+
+	on := "OFF"
+	if rawOn {
+		on = "ON"
+	}
+
+	topicPrefix := strings.TrimRight(c.topicPrefix, "/") + "/"
+
+	outgoingMessages := []mqtt.Message{
+		{
+			Topic:   fmt.Sprintf("%v%v/%v", topicPrefix, topicOnInfix, topicGetSuffix),
+			Payload: fmt.Sprintf("%v", on),
+		},
+		{
+			Topic:   fmt.Sprintf("%v%v/%v", topicPrefix, topicModeInfix, topicGetSuffix),
+			Payload: fmt.Sprintf("%v", mode),
+		},
+		{
+			Topic:   fmt.Sprintf("%v%v/%v", topicPrefix, topicTemperatureInfix, topicGetSuffix),
+			Payload: fmt.Sprintf("%v", temperature),
+		},
+	}
+
+	for _, outgoingMessage := range outgoingMessages {
+		err := c.publish(outgoingMessage.Topic, mqtt.ExactlyOnce, true, outgoingMessage.Payload, true)
+		if err != nil {
+			return fmt.Errorf("failed to publish %#+v because: %v", outgoingMessage, err)
+		}
+	}
+
+	return nil
 }
