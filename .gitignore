@@ -6,3 +6,4 @@ docker/prometheus/data
 mqtt_things.iml
 .idea
 bin
+res/esp32/dimmable-leds/cfg.toml
