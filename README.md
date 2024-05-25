@@ -36,8 +36,9 @@ It's pretty tightly coupled to my home automation setup, but there might be a fe
         -   Handy debugging tool for subscribing to / publishing to MQTT topics
     -   `topic_exporter_cli`
     -   A generalized thing to expose the state of an MQTT broker's topics as a Prometheus exporter
-    -   `weather_cli`
+    -   `open_weather_cli`
         -   MQTT integration for OpenWeather
+            -   NOTE: This uses the 2.5 API which they're apparently deprecating sometime in 2024, so it's basically just garbage now
 -   `res`
     -   `arduino`
     -   `esp32`

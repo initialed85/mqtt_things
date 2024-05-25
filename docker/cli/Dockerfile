@@ -10,6 +10,7 @@ RUN go mod download
 
 COPY cmd /srv/cmd
 COPY pkg /srv/pkg
+COPY internal /srv/internal
 
 RUN go build -v -o entrypoint /srv/cmd/${CMD_NAME}/main.go
 

@@ -62,7 +62,7 @@ func (c *GlueClient) Subscribe(topic string, qos byte, callback func(message Mes
 	return c.endpointManager.Subscribe(
 		topic,
 		"bytes",
-		func(topicsMessage topics.Message) {
+		func(topicsMessage *topics.Message) {
 			message := Message{
 				Received:  topicsMessage.Timestamp,
 				Topic:     topicsMessage.TopicName,

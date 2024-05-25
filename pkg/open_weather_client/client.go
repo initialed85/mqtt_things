@@ -1,4 +1,4 @@
-package weather_client
+package open_weather_client
 
 import (
 	"encoding/json"
