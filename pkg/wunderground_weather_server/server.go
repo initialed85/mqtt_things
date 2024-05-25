@@ -195,14 +195,14 @@ func Run(
 
 				weather.WindSpeed, ok = rawItems["windspeedmph"].(float64)
 				if ok {
-					weather.WindSpeed *= 1.6093444979
+					weather.WindSpeed *= 0.44704
 				}
 
 				weather.WindDirection, _ = rawItems["winddir"].(float64)
 
 				weather.WindGust, ok = rawItems["windgustmph"].(float64)
 				if ok {
-					weather.WindGust *= 1.6093444979
+					weather.WindGust *= 0.44704
 				}
 
 				weather.AirPressure, ok = rawItems["baromin"].(float64)
