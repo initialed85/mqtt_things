@@ -14,21 +14,21 @@ import (
 )
 
 const (
-	timestampTopic         = "/home/outside/weather/timestamp/get"
-	stationIDTopic         = "/home/outside/weather/station-id/get"
-	latitudeTopic          = "/home/outside/weather/latitude/get"
-	longitudeTopic         = "/home/outside/weather/longitude/get"
-	temperatureTopic       = "/home/outside/weather/temperature/get"
-	dewPointTopic          = "/home/outside/weather/dew-point/get"
-	humidityTopic          = "/home/outside/weather/humidity/get"
-	windSpeedTopic         = "/home/outside/weather/wind-speed/get"
-	windDirectionTopic     = "/home/outside/weather/wind-direction/get"
-	windGustTopic          = "/home/outside/weather/wind-gust/get"
-	airPressureTopic       = "/home/outside/weather/air-pressure/get"
-	rainLast60MinsTopic    = "/home/outside/weather/rain-last-60-mins/get"
-	rainTodayTopic         = "/home/outside/weather/rain-today/get"
-	temperatureIndoorTopic = "/home/inside/weather/temperature/get"
-	humidityIndoorTopic    = "/home/inside/weather/humidity/get"
+	timestampTopic         = "home/outside/weather/timestamp/get"
+	stationIDTopic         = "home/outside/weather/station-id/get"
+	latitudeTopic          = "home/outside/weather/latitude/get"
+	longitudeTopic         = "home/outside/weather/longitude/get"
+	temperatureTopic       = "home/outside/weather/temperature/get"
+	dewPointTopic          = "home/outside/weather/dew-point/get"
+	humidityTopic          = "home/outside/weather/humidity/get"
+	windSpeedTopic         = "home/outside/weather/wind-speed/get"
+	windDirectionTopic     = "home/outside/weather/wind-direction/get"
+	windGustTopic          = "home/outside/weather/wind-gust/get"
+	airPressureTopic       = "home/outside/weather/air-pressure/get"
+	rainLast60MinsTopic    = "home/outside/weather/rain-last-60-mins/get"
+	rainTodayTopic         = "home/outside/weather/rain-today/get"
+	temperatureIndoorTopic = "home/inside/weather/temperature/get"
+	humidityIndoorTopic    = "home/inside/weather/humidity/get"
 )
 
 var (
