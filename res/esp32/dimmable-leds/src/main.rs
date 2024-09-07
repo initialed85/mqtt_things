@@ -8,6 +8,7 @@ use esp_idf_hal::gpio::*;
 use esp_idf_hal::ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver, Resolution};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::prelude::*;
+use esp_idf_hal::reset::restart;
 use esp_idf_svc::mqtt::client::{EspMqttClient, MqttClientConfiguration};
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
 
@@ -125,7 +126,7 @@ fn main() -> anyhow::Result<()> {
     let wifi_config = wifi_driver
         .get_configuration()
         .context("failed wifi_driver.get_configuration()")?;
-    println!("wifi_config={:?}", wifi_config);
+    log::info!("wifi_config={:?}", wifi_config);
 
     wifi_driver.start().context("failed wifi_driver.start()")?;
 
@@ -133,17 +134,31 @@ fn main() -> anyhow::Result<()> {
         .connect()
         .context("failed wifi_driver.connect()")?;
 
+    let expiry = std::time::SystemTime::now()
+        .checked_add(std::time::Duration::from_secs(10))
+        .context("failed time stuff")?;
+
     while !wifi_driver.is_up().context("failed wifi_driver.is_up()")? {
-        println!("waiting for wifi_driver.is_up()...");
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        let duration_since_expiry = std::time::SystemTime::now().duration_since(expiry);
+
+        if !duration_since_expiry.is_err()
+            && duration_since_expiry? > std::time::Duration::from_secs(0)
+        {
+            log::error!("timed out waiting for wifi_driver.is_up(); will reboot");
+            restart();
+            continue;
+        }
+
+        log::info!("waiting for wifi_driver.is_up()...");
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
-    println!("connected.");
+    log::info!("connected.");
 
     let ip_info = wifi_driver
         .ap_netif()
         .get_ip_info()
         .context("failed wifi_driver.ap_netif().get_ip_info()")?;
-    println!("ip_info={:?}", ip_info);
+    log::info!("ip_info={:?}", ip_info);
 
     let conf = MqttClientConfiguration {
         client_id: Some("mqtt-things-esp32-dimmable-leds"),
@@ -157,7 +172,7 @@ fn main() -> anyhow::Result<()> {
     let (outgoing_message_sender, outgoing_message_receiver) =
         std::sync::mpsc::sync_channel::<OutgoingMessage>(1024);
 
-    std::thread::Builder::new()
+    let handler = std::thread::Builder::new()
         .stack_size(65536)
         .spawn(move || -> anyhow::Result<()> {
             let max_duty = led_driver_1.get_max_duty(); // 65535 for 16-bit
@@ -185,19 +200,32 @@ fn main() -> anyhow::Result<()> {
                 match msg {
                     Err(e) => log::error!("error: {:?}", e),
                     Ok(msg) => match msg.payload() {
-                        esp_idf_svc::mqtt::client::EventPayload::BeforeConnect => {}
+                        esp_idf_svc::mqtt::client::EventPayload::BeforeConnect => {
+                            log::info!("mqtt BeforeConnect");
+                        }
                         esp_idf_svc::mqtt::client::EventPayload::Connected(_) => {
-                            log::info!("mqtt connected");
+                            log::info!("mqtt Connected");
                         }
                         esp_idf_svc::mqtt::client::EventPayload::Disconnected => {
-                            log::info!("mqtt disconnected");
+                            log::info!("mqtt Disconnected");
+
+                            log::info!("exiting handler...");
+                            return Ok(());
                         }
-                        esp_idf_svc::mqtt::client::EventPayload::Subscribed(_) => {}
-                        esp_idf_svc::mqtt::client::EventPayload::Unsubscribed(_) => {}
-                        esp_idf_svc::mqtt::client::EventPayload::Published(_) => {}
-                        esp_idf_svc::mqtt::client::EventPayload::Deleted(_) => {}
+                        esp_idf_svc::mqtt::client::EventPayload::Subscribed(_) => {
+                            log::info!("mqtt Subscribed");
+                        }
+                        esp_idf_svc::mqtt::client::EventPayload::Unsubscribed(_) => {
+                            log::info!("mqtt Unsubscribed");
+                        }
+                        esp_idf_svc::mqtt::client::EventPayload::Published(_) => {
+                            log::info!("mqtt Published");
+                        }
+                        esp_idf_svc::mqtt::client::EventPayload::Deleted(_) => {
+                            log::info!("mqtt Deleted");
+                        }
                         esp_idf_svc::mqtt::client::EventPayload::Error(e) => {
-                            log::info!("mqtt error: {:?}", e);
+                            log::info!("mqtt Error: {:?}", e);
                         }
                         esp_idf_svc::mqtt::client::EventPayload::Received {
                             id,
@@ -205,6 +233,14 @@ fn main() -> anyhow::Result<()> {
                             data,
                             details,
                         } => {
+                            log::info!(
+                                "mqtt Received; id={:?}, topic={:?}, data={:?}, details={:?}",
+                                id,
+                                topic,
+                                data,
+                                details
+                            );
+
                             if topic.is_none() {
                                 log::error!("skipping mqtt message with missing topic");
                                 continue;
@@ -505,6 +541,13 @@ fn main() -> anyhow::Result<()> {
         .context("failed client.subscribe()")?;
 
     loop {
+        let handler = &handler;
+        if handler.is_finished() {
+            log::error!("handler unexpectedly exited; will reboot");
+            restart();
+            continue;
+        }
+
         let outgoing_message =
             outgoing_message_receiver.recv_timeout(std::time::Duration::from_millis(5000));
         if outgoing_message.is_err() {

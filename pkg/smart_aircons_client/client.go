@@ -18,7 +18,7 @@ type Client struct {
 	topicPrefix string
 	host        string
 	codes       string
-	sendIR      func(string, any) error
+	sendIR      func(string, []byte) error
 	publish     func(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error
 }
 
@@ -26,7 +26,7 @@ func NewClient(
 	topicPrefix string,
 	host string,
 	codes string,
-	sendIR func(string, any) error,
+	sendIR func(string, []byte) error,
 	publish func(topic string, qos byte, retained bool, payload interface{}, quiet ...bool) error,
 ) *Client {
 	c := Client{
@@ -58,7 +58,7 @@ func NewClient(
 }
 
 func (c *Client) setState(on bool, mode string, temperature int64) error {
-	var code any
+	var code []byte
 	var err error
 
 	log.Printf("setState(on=%#+v, mode=%#+v, temperature=%#+v)", on, mode, temperature)

@@ -9,6 +9,7 @@ require (
 	github.com/goiiot/libmqtt v0.9.6
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/initialed85/glue v0.0.0-20240324114717-73c317ae6909
 	github.com/prometheus/client_golang v1.19.1
 	github.com/stretchr/testify v1.6.1
@@ -22,6 +23,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.53.0 // indirect
@@ -31,7 +33,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 	nhooyr.io/websocket v1.8.11 // indirect

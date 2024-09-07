@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -89,17 +90,22 @@ func main() {
 			topicPrefix,
 			airconHost,
 			airconCodesName,
-			func(hostOrMac string, rawCode any) error {
-				switch code := rawCode.(type) {
-				case string:
+			func(hostOrMac string, code []byte) error {
+				if len(code) < 2 {
+					return fmt.Errorf("code %#+v not at least 2 bytes long", code)
+				}
+
+				switch {
+				case bytes.Equal(code[0:2], []byte{0x49, 0x52}):
 					return smart_aircons_client.ZmoteSendIR(hostOrMac, code)
-				case []byte:
+				case bytes.Equal(code[0:2], []byte{0x73, 0x65}), bytes.Equal(code[0:2], []byte{0x26, 0x0}):
 					return smart_aircons_client.BroadlinkSendIR(hostOrMac, code)
+				default:
 				}
 
 				return fmt.Errorf(
-					"expected %#+v to be of type string (for zmote) or type []byte (for broadlink)",
-					rawCode,
+					"expected %#+v to be of have prefix []byte{0x73, 0x65} or []byte{0x49, 0x52} (for zmote) or []byte{0x26, 0x0} (for broadlink)",
+					code,
 				)
 			},
 			mqttClient.Publish,

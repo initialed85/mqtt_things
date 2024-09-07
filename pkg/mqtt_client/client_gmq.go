@@ -1,8 +1,11 @@
 package mqtt_client
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/yosssi/gmq/mqtt/client"
@@ -24,6 +27,18 @@ type GMQClient struct {
 }
 
 func NewGMQClient(host, username, password string, errorHandler func(Client, error)) (c *GMQClient) {
+	port := 1883
+
+	if strings.Contains(host, ":") {
+		parts := strings.Split(host, ":")
+		rawPort := parts[1]
+		possiblePort, _ := strconv.ParseInt(rawPort, 10, 64)
+		if possiblePort > 0 {
+			host = parts[0]
+			port = int(possiblePort)
+		}
+	}
+
 	if GMQTestMode {
 		host = GMQTestHost
 	}
@@ -36,13 +51,17 @@ func NewGMQClient(host, username, password string, errorHandler func(Client, err
 
 	c.connectOptions = client.ConnectOptions{
 		Network: "tcp",
-		Address: fmt.Sprintf("%v:1883", host),
+		Address: fmt.Sprintf("%v:%v", host, port),
 		// CONNACKTimeout:  time.Second * 10,
 		// PINGRESPTimeout: time.Second * 10,
 		ClientID: []byte(clientID),
 		UserName: []byte(username),
 		Password: []byte(password),
 		// KeepAlive:       5,
+	}
+
+	if port == 8883 {
+		c.connectOptions.TLSConfig = &tls.Config{}
 	}
 
 	c.options = client.Options{
