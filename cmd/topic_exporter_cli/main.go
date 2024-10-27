@@ -52,18 +52,66 @@ func main() {
 	mu := sync.Mutex{}
 	gaugeByTopic := make(map[string]prometheus.Gauge, 0)
 
+	setGauge := func(topic string, value float64) {
+		log.Printf("setting guage for %#+v to %#+v", topic, value)
+
+		mu.Lock()
+		gauge, ok := gaugeByTopic[topic]
+		if !ok {
+			gauge = promauto.NewGauge(prometheus.GaugeOpts{
+				Name: "mqtt_topic_float64_value",
+				Help: "",
+				ConstLabels: map[string]string{
+					"topic": topic,
+				},
+			})
+
+			gaugeByTopic[topic] = gauge
+		}
+		mu.Unlock()
+
+		gauge.Set(value)
+
+	}
+
 	err = mqttClient.Subscribe(
-		"+/#",
+		"+/+/#",
 		mqtt.ExactlyOnce,
 		func(message mqtt.Message) {
 			topic := message.Topic
+			payload := strings.TrimSpace(strings.ToLower(message.Payload))
+
+			if strings.Contains(topic, "home/inside/smart-aircons/") && strings.HasSuffix(topic, "/mode/get") {
+				heatTopic := strings.ReplaceAll(topic, "/mode/get", "/heat/get")
+				coolTopic := strings.ReplaceAll(topic, "/mode/get", "/cool/get")
+				fanTopic := strings.ReplaceAll(topic, "/mode/get", "/fan/get")
+				if strings.HasPrefix(payload, "off") {
+					setGauge(fanTopic, 0.0)
+					setGauge(coolTopic, 0.0)
+					setGauge(heatTopic, 0.0)
+				} else if strings.HasPrefix(payload, "fan_") {
+					setGauge(fanTopic, 1.0)
+					setGauge(coolTopic, 0.0)
+					setGauge(heatTopic, 0.0)
+				} else if strings.HasPrefix(payload, "cool_") {
+					setGauge(fanTopic, 0.0)
+					setGauge(coolTopic, 1.0)
+					setGauge(heatTopic, 0.0)
+				} else if strings.HasPrefix(payload, "heat_") {
+					setGauge(fanTopic, 0.0)
+					setGauge(coolTopic, 0.0)
+					setGauge(heatTopic, 1.0)
+				}
+
+				return
+			}
 
 			var value float64
 
-			switch strings.TrimSpace(strings.ToLower(message.Payload)) {
-			case "yes", "true", "y", "t":
+			switch payload {
+			case "yes", "true", "y", "t", "on":
 				value = 1.0
-			case "no", "false", "n", "f":
+			case "no", "false", "n", "f", "off":
 				value = 0.0
 			default:
 				value, err = strconv.ParseFloat(message.Payload, 64)
@@ -73,24 +121,7 @@ func main() {
 				}
 			}
 
-			log.Printf("setting guage for %#+v to %#+v", topic, value)
-
-			mu.Lock()
-			gauge, ok := gaugeByTopic[topic]
-			if !ok {
-				gauge = promauto.NewGauge(prometheus.GaugeOpts{
-					Name: "mqtt_topic_float64_value",
-					Help: "",
-					ConstLabels: map[string]string{
-						"topic": topic,
-					},
-				})
-
-				gaugeByTopic[topic] = gauge
-			}
-			mu.Unlock()
-
-			gauge.Set(value)
+			setGauge(topic, value)
 		},
 	)
 	if err != nil {

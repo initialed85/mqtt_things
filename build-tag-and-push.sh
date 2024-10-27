@@ -36,11 +36,11 @@ function build_arm64() {
 }
 
 # for the pi under the house
-# build_arm64 "sprinklers_cli" "sprinklers-cli"
+build_arm64 "sprinklers_cli" "sprinklers-cli"
 
 # for the cluster
-# build_amd64 "sensors_cli" "sensors-cli"
+build_amd64 "sensors_cli" "sensors-cli"
 build_amd64 "smart_aircons_cli" "smart-aircons-cli"
-# build_amd64 "weather_cli" "weather-cli"
-# build_amd64 "http_cli" "http-cli"
-# build_amd64 "topic_exporter_cli" "topic-exporter-cli"
+build_amd64 "weather_cli" "weather-cli"
+build_amd64 "http_cli" "http-cli"
+build_amd64 "topic_exporter_cli" "topic-exporter-cli"

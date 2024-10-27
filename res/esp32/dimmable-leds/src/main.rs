@@ -1,7 +1,4 @@
-use std::time::Duration;
-
 use anyhow::Context;
-
 use embedded_svc::mqtt::client::QoS;
 use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_hal::gpio::*;
@@ -11,16 +8,25 @@ use esp_idf_hal::prelude::*;
 use esp_idf_hal::reset::restart;
 use esp_idf_svc::mqtt::client::{EspMqttClient, MqttClientConfiguration};
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+const WIFI_SSID: &str = "Get schwifty";
+const WIFI_PSK: &str = "P@$$w0rd1";
+// const WIFI_SSID: &str = "Nothing to see here";
+// const WIFI_PSK: &str = "P@$$w0rd1";
+// const WIFI_SSID: &str = "freewifi";
+// const WIFI_PSK: &str = "n1mr0d3l";
+
+const MQTT_URI: &str = "mqtt://192.168.137.251:1883";
 
 const PWM_FREQ_HZ: u32 = 100;
 
 const ON: &str = "ON";
 const OFF: &str = "OFF";
 const MAX_VALUE: u32 = 65536;
-
 const GET_SUFFIX: &str = "/get";
 const SET_SUFFIX: &str = "/set";
-
 const LED_1_PREFIX: &str = "home/outside/lights/led-string/1";
 const LED_2_PREFIX: &str = "home/outside/lights/led-string/2";
 const STATE_TOPIC_INFIX: &str = "/state";
@@ -117,8 +123,8 @@ fn main() -> anyhow::Result<()> {
     wifi_driver
         .set_configuration(&Configuration::Client(ClientConfiguration {
             auth_method: AuthMethod::WPA2Personal,
-            ssid: "Nothing to see here".try_into().unwrap(),
-            password: "P@$$w0rd1".try_into().unwrap(),
+            ssid: WIFI_SSID.try_into().unwrap(),
+            password: WIFI_PSK.try_into().unwrap(),
             ..Default::default()
         }))
         .context("failed wifi_driver.set_configuration()")?;
@@ -155,9 +161,9 @@ fn main() -> anyhow::Result<()> {
     log::info!("connected.");
 
     let ip_info = wifi_driver
-        .ap_netif()
+        .sta_netif()
         .get_ip_info()
-        .context("failed wifi_driver.ap_netif().get_ip_info()")?;
+        .context("failed wifi_driver.sta_netif().get_ip_info()")?;
     log::info!("ip_info={:?}", ip_info);
 
     let conf = MqttClientConfiguration {
@@ -166,11 +172,14 @@ fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    let (mut client, mut connection) = EspMqttClient::new("mqtt://192.168.137.251:1883", &conf)
-        .context("failed EspMqttClient::new()")?;
+    let (mut client, mut connection) =
+        EspMqttClient::new(MQTT_URI, &conf).context("failed EspMqttClient::new()")?;
 
     let (outgoing_message_sender, outgoing_message_receiver) =
         std::sync::mpsc::sync_channel::<OutgoingMessage>(1024);
+
+    let ready_to_subscribe = Arc::new(Mutex::new(false));
+    let thread_ready_to_subscribe = Arc::clone(&ready_to_subscribe);
 
     let handler = std::thread::Builder::new()
         .stack_size(65536)
@@ -205,6 +214,11 @@ fn main() -> anyhow::Result<()> {
                         }
                         esp_idf_svc::mqtt::client::EventPayload::Connected(_) => {
                             log::info!("mqtt Connected");
+
+                            let mut this_ready_to_subscribe =
+                                thread_ready_to_subscribe.lock().unwrap();
+                            *this_ready_to_subscribe = true;
+                            drop(this_ready_to_subscribe);
                         }
                         esp_idf_svc::mqtt::client::EventPayload::Disconnected => {
                             log::info!("mqtt Disconnected");
@@ -376,6 +390,7 @@ fn main() -> anyhow::Result<()> {
                                     data: outgoing_message_data,
                                 };
 
+                                log::info!("requesting publish of {:?}", outgoing_message);
                                 let result = outgoing_message_sender.send(outgoing_message.clone());
                                 if result.is_err() {
                                     log::error!(
@@ -384,8 +399,6 @@ fn main() -> anyhow::Result<()> {
                                     );
                                     continue;
                                 }
-
-                                log::info!("requesting publish of {:?}", outgoing_message);
 
                                 if as_utf8 == OFF {
                                     let outgoing_message_topic = topic
@@ -492,9 +505,16 @@ fn main() -> anyhow::Result<()> {
         })
         .context("failed std::thread::Builder::new()")?;
 
-    //
-    // set topics
-    //
+    log::info!("waiting to be ready to subscribe...");
+    loop {
+        let this_ready_to_subscribe = ready_to_subscribe.try_lock().unwrap();
+        if *this_ready_to_subscribe {
+            drop(this_ready_to_subscribe);
+            break;
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
 
     log::info!("subscribing to {:?}", led_1_state_set_topic);
     client
@@ -515,10 +535,6 @@ fn main() -> anyhow::Result<()> {
     client
         .subscribe(led_2_brightness_set_topic, QoS::AtMostOnce)
         .context("failed client.subscribe()")?;
-
-    //
-    // get topics
-    //
 
     log::info!("subscribing to {:?}", led_1_state_get_topic);
     client
