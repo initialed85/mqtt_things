@@ -20,8 +20,13 @@ const MQTT_URI: &str = "mqtt://192.168.137.251:1883";
 
 const ON: &str = "1";
 const OFF: &str = "0";
-const GET_TOPIC: &str = "home/outside/sprinklers/bank/4/state/get";
-const SET_TOPIC: &str = "home/outside/sprinklers/bank/4/state/set";
+
+const GET_TOPIC_4: &str = "home/outside/sprinklers/bank/4/state/get";
+const SET_TOPIC_4: &str = "home/outside/sprinklers/bank/4/state/set";
+const GET_TOPIC_3: &str = "home/outside/sprinklers/bank/3/state/get";
+const SET_TOPIC_3: &str = "home/outside/sprinklers/bank/3/state/set";
+const GET_TOPIC_2: &str = "home/outside/sprinklers/bank/2/state/get";
+const SET_TOPIC_2: &str = "home/outside/sprinklers/bank/2/state/set";
 
 #[derive(Debug, Clone)]
 struct OutgoingMessage {
@@ -41,7 +46,9 @@ fn main() -> anyhow::Result<()> {
     let sys_loop = EspSystemEventLoop::take().context("failed EspSystemEventLoop::take()")?;
     let nvs = EspDefaultNvsPartition::take().context("failed EspDefaultNvsPartition::take()")?;
 
-    let mut relay = PinDriver::output(peripherals.pins.gpio4)?;
+    let mut relay_4 = PinDriver::output(peripherals.pins.gpio27)?;
+    let mut relay_3 = PinDriver::output(peripherals.pins.gpio14)?;
+    let mut relay_2 = PinDriver::output(peripherals.pins.gpio12)?;
 
     let mut wifi_driver =
         EspWifi::new(peripherals.modem, sys_loop, Some(nvs)).context("failed EspWifi::new()")?;
@@ -91,8 +98,19 @@ fn main() -> anyhow::Result<()> {
         .context("failed wifi_driver.sta_netif().get_ip_info()")?;
     log::info!("ip_info={:?}", ip_info);
 
+    let mac = wifi_driver
+        .sta_netif()
+        .get_mac()
+        .context("failed wifi_driver.sta_netif().get_mac()")?;
+    log::info!("mac={:?}", mac);
+
+    let client_id = format!(
+        "mqtt-things-esp32-sprinklers-{:?}",
+        mac.to_ascii_lowercase()
+    );
+
     let conf = MqttClientConfiguration {
-        client_id: Some("mqtt-things-esp32-sprinklers"),
+        client_id: Some(&client_id),
         keep_alive_interval: Some(Duration::from_secs(30)),
         ..Default::default()
     };
@@ -194,12 +212,16 @@ fn main() -> anyhow::Result<()> {
                                 as_utf8
                             );
 
-                            if topic == GET_TOPIC {
+                            //
+                            // relay 4
+                            //
+
+                            if topic == GET_TOPIC_4 {
                                 let skip = true;
 
                                 if !*reset_state_handled {
                                     *reset_state_handled = true;
-                                    topic = SET_TOPIC.into();
+                                    topic = SET_TOPIC_4.into();
                                 }
 
                                 if skip {
@@ -207,9 +229,9 @@ fn main() -> anyhow::Result<()> {
                                 }
                             }
 
-                            if topic == SET_TOPIC {
+                            if topic == SET_TOPIC_4 {
                                 if as_utf8 == ON {
-                                    let result = relay.set_high();
+                                    let result = relay_4.set_high();
                                     if result.is_err() {
                                         log::error!(
                                             "failed to handle state enable for {:?}: {:?}",
@@ -225,7 +247,7 @@ fn main() -> anyhow::Result<()> {
                                         as_utf8
                                     );
                                 } else if as_utf8 == OFF {
-                                    let result = relay.set_low();
+                                    let result = relay_4.set_low();
                                     if result.is_err() {
                                         log::error!(
                                             "failed to handle state disable for {:?}: {:?}",
@@ -249,7 +271,7 @@ fn main() -> anyhow::Result<()> {
                                     continue;
                                 }
 
-                                let outgoing_message_topic = GET_TOPIC.into();
+                                let outgoing_message_topic = GET_TOPIC_4.into();
                                 let outgoing_message_data = as_utf8.to_string().into_bytes();
                                 let outgoing_message = OutgoingMessage {
                                     topic: outgoing_message_topic,
@@ -260,7 +282,161 @@ fn main() -> anyhow::Result<()> {
                                 let result = outgoing_message_sender.send(outgoing_message.clone());
                                 if result.is_err() {
                                     log::error!(
-                                        "failed to handle brightness publish to set topic; {:?}",
+                                        "failed to handle publish to set topic; {:?}",
+                                        outgoing_message,
+                                    );
+                                    continue;
+                                }
+                            }
+
+                            //
+                            // relay 3
+                            //
+
+                            if topic == GET_TOPIC_3 {
+                                let skip = true;
+
+                                if !*reset_state_handled {
+                                    *reset_state_handled = true;
+                                    topic = SET_TOPIC_3.into();
+                                }
+
+                                if skip {
+                                    continue;
+                                }
+                            }
+
+                            if topic == SET_TOPIC_3 {
+                                if as_utf8 == ON {
+                                    let result = relay_3.set_high();
+                                    if result.is_err() {
+                                        log::error!(
+                                            "failed to handle state enable for {:?}: {:?}",
+                                            topic,
+                                            as_utf8
+                                        );
+                                        continue;
+                                    }
+
+                                    log::info!(
+                                        "handled state enable for {:?}: {:?}",
+                                        topic,
+                                        as_utf8
+                                    );
+                                } else if as_utf8 == OFF {
+                                    let result = relay_3.set_low();
+                                    if result.is_err() {
+                                        log::error!(
+                                            "failed to handle state disable for {:?}: {:?}",
+                                            topic,
+                                            as_utf8
+                                        );
+                                        continue;
+                                    }
+
+                                    log::info!(
+                                        "handled state enable for {:?}: {:?}",
+                                        topic,
+                                        as_utf8
+                                    );
+                                } else {
+                                    log::error!(
+                                        "failed to handle state enable for {:?}: {:?}",
+                                        topic,
+                                        as_utf8
+                                    );
+                                    continue;
+                                }
+
+                                let outgoing_message_topic = GET_TOPIC_3.into();
+                                let outgoing_message_data = as_utf8.to_string().into_bytes();
+                                let outgoing_message = OutgoingMessage {
+                                    topic: outgoing_message_topic,
+                                    data: outgoing_message_data,
+                                };
+
+                                log::info!("requesting publish of {:?}", outgoing_message);
+                                let result = outgoing_message_sender.send(outgoing_message.clone());
+                                if result.is_err() {
+                                    log::error!(
+                                        "failed to handle publish to set topic; {:?}",
+                                        outgoing_message,
+                                    );
+                                    continue;
+                                }
+                            }
+
+                            //
+                            // relay 2
+                            //
+
+                            if topic == GET_TOPIC_2 {
+                                let skip = true;
+
+                                if !*reset_state_handled {
+                                    *reset_state_handled = true;
+                                    topic = SET_TOPIC_2.into();
+                                }
+
+                                if skip {
+                                    continue;
+                                }
+                            }
+
+                            if topic == SET_TOPIC_2 {
+                                if as_utf8 == ON {
+                                    let result = relay_2.set_high();
+                                    if result.is_err() {
+                                        log::error!(
+                                            "failed to handle state enable for {:?}: {:?}",
+                                            topic,
+                                            as_utf8
+                                        );
+                                        continue;
+                                    }
+
+                                    log::info!(
+                                        "handled state enable for {:?}: {:?}",
+                                        topic,
+                                        as_utf8
+                                    );
+                                } else if as_utf8 == OFF {
+                                    let result = relay_2.set_low();
+                                    if result.is_err() {
+                                        log::error!(
+                                            "failed to handle state disable for {:?}: {:?}",
+                                            topic,
+                                            as_utf8
+                                        );
+                                        continue;
+                                    }
+
+                                    log::info!(
+                                        "handled state enable for {:?}: {:?}",
+                                        topic,
+                                        as_utf8
+                                    );
+                                } else {
+                                    log::error!(
+                                        "failed to handle state enable for {:?}: {:?}",
+                                        topic,
+                                        as_utf8
+                                    );
+                                    continue;
+                                }
+
+                                let outgoing_message_topic = GET_TOPIC_2.into();
+                                let outgoing_message_data = as_utf8.to_string().into_bytes();
+                                let outgoing_message = OutgoingMessage {
+                                    topic: outgoing_message_topic,
+                                    data: outgoing_message_data,
+                                };
+
+                                log::info!("requesting publish of {:?}", outgoing_message);
+                                let result = outgoing_message_sender.send(outgoing_message.clone());
+                                if result.is_err() {
+                                    log::error!(
+                                        "failed to handle publish to set topic; {:?}",
                                         outgoing_message,
                                     );
                                     continue;
@@ -284,14 +460,46 @@ fn main() -> anyhow::Result<()> {
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
-    log::info!("subscribing to {:?}", SET_TOPIC);
+    //
+    // relay 4
+    //
+
+    log::info!("subscribing to {:?}", SET_TOPIC_4);
     client
-        .subscribe(SET_TOPIC, QoS::AtMostOnce)
+        .subscribe(SET_TOPIC_4, QoS::AtMostOnce)
         .context("failed client.subscribe()")?;
 
-    log::info!("subscribing to {:?}", GET_TOPIC);
+    log::info!("subscribing to {:?}", GET_TOPIC_4);
     client
-        .subscribe(GET_TOPIC, QoS::AtMostOnce)
+        .subscribe(GET_TOPIC_4, QoS::AtMostOnce)
+        .context("failed client.subscribe()")?;
+
+    //
+    // relay 3
+    //
+
+    log::info!("subscribing to {:?}", SET_TOPIC_3);
+    client
+        .subscribe(SET_TOPIC_3, QoS::AtMostOnce)
+        .context("failed client.subscribe()")?;
+
+    log::info!("subscribing to {:?}", GET_TOPIC_3);
+    client
+        .subscribe(GET_TOPIC_3, QoS::AtMostOnce)
+        .context("failed client.subscribe()")?;
+
+    //
+    // relay 2
+    //
+
+    log::info!("subscribing to {:?}", SET_TOPIC_2);
+    client
+        .subscribe(SET_TOPIC_2, QoS::AtMostOnce)
+        .context("failed client.subscribe()")?;
+
+    log::info!("subscribing to {:?}", GET_TOPIC_2);
+    client
+        .subscribe(GET_TOPIC_2, QoS::AtMostOnce)
         .context("failed client.subscribe()")?;
 
     loop {
