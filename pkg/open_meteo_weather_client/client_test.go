@@ -72,5 +72,7 @@ func TestOpenMeteoWeatherClient(t *testing.T) {
 	t.Run("Parse", func(t *testing.T) {
 		weather, err := Parse(testData)
 		require.NoError(t, err)
+
+		_ = weather
 	})
 }
