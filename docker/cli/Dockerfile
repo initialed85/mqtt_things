@@ -1,26 +1,28 @@
-FROM golang:1.21-bullseye AS builder
+# FROM golang:1.21-bullseye AS builder
 
-ARG CMD_NAME
+# ARG CMD_NAME
 
-WORKDIR /srv/
+# WORKDIR /srv/
 
-COPY go.mod /srv/go.mod
-COPY go.sum /srv/go.sum
-RUN go mod download
+# COPY go.mod /srv/go.mod
+# COPY go.sum /srv/go.sum
+# RUN go mod download
 
-COPY cmd /srv/cmd
-COPY pkg /srv/pkg
-COPY internal /srv/internal
+# COPY cmd /srv/cmd
+# COPY pkg /srv/pkg
+# COPY internal /srv/internal
 
-RUN go build -v -o entrypoint /srv/cmd/${CMD_NAME}/main.go
+# RUN go build -v -o entrypoint /srv/cmd/${CMD_NAME}/main.go
 
-FROM golang:1.21-bullseye AS runner
+FROM ubuntu:22.04 AS runner
 
 RUN apt-get update && apt-get install -y sqlite3
 
 WORKDIR /srv/
 
-COPY --from=builder /srv/entrypoint /srv/entrypoint
+# COPY --from=builder /srv/entrypoint /srv/entrypoint
+
+COPY ./entrypoint /srv/entrypoint
 
 STOPSIGNAL SIGINT
 

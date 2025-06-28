@@ -125,15 +125,19 @@ func main() {
 		clients = append(clients, client)
 	}
 
-	for _, client := range clients {
-		client.EnableRestoreMode()
-	}
+	//
+	// TODO: got sick of this beeping all the aircons any time the pod restarts
+	//
 
-	time.Sleep(time.Second)
+	// for _, client := range clients {
+	// 	client.EnableRestoreMode()
+	// }
 
-	for _, client := range clients {
-		client.DisableRestoreMode()
-	}
+	// time.Sleep(time.Second)
+
+	// for _, client := range clients {
+	// 	client.DisableRestoreMode()
+	// }
 
 	time.Sleep(time.Second)
 
