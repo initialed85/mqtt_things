@@ -98,167 +98,169 @@ func main() {
 
 	ticker := time.NewTicker(cyclePeriod)
 
-	for {
-		select {
-		case <-ticker.C:
-			sensors, err := sensorsClient.GetSensors()
+	for range ticker.C {
+		sensors, err := sensorsClient.GetSensors()
+		if err != nil {
+			log.Print(err)
+			break
+		}
+
+		topicFriendlyNames := make(map[string]bool)
+
+		for _, sensor := range sensors {
+			topicFriendlyNames[getTopicFriendlyName(sensor.Name)] = true
+
+			err = mqttClient.Publish(
+				fmt.Sprintf(
+					"%v/%v/%v/%v",
+					topicPrefix,
+					getTopicFriendlyName(sensor.Name),
+					presenceAffix,
+					topicSuffix,
+				),
+				mqtt.ExactlyOnce,
+				false,
+				getIntStringFromBool(sensor.Presence),
+			)
 			if err != nil {
 				log.Print(err)
+			}
+
+			err = mqttClient.Publish(
+				fmt.Sprintf(
+					"%v/%v/%v/%v",
+					topicPrefix,
+					getTopicFriendlyName(sensor.Name),
+					lightLevelAffix,
+					topicSuffix,
+				),
+				mqtt.ExactlyOnce,
+				false,
+				fmt.Sprintf("%v", sensor.LightLevel),
+			)
+			if err != nil {
+				log.Print(err)
+			}
+
+			err = mqttClient.Publish(
+				fmt.Sprintf(
+					"%v/%v/%v/%v",
+					topicPrefix,
+					getTopicFriendlyName(sensor.Name),
+					darkAffix,
+					topicSuffix,
+				),
+				mqtt.ExactlyOnce,
+				false,
+				getIntStringFromBool(sensor.Dark),
+			)
+			if err != nil {
+				log.Print(err)
+			}
+
+			err = mqttClient.Publish(
+				fmt.Sprintf(
+					"%v/%v/%v/%v",
+					topicPrefix,
+					getTopicFriendlyName(sensor.Name),
+					daylightAffix,
+					topicSuffix,
+				),
+				mqtt.ExactlyOnce,
+				false,
+				getIntStringFromBool(sensor.Daylight),
+			)
+			if err != nil {
+				log.Print(err)
+			}
+
+			err = mqttClient.Publish(
+				fmt.Sprintf(
+					"%v/%v/%v/%v",
+					topicPrefix,
+					getTopicFriendlyName(sensor.Name),
+					temperatureAffix,
+					topicSuffix,
+				),
+				mqtt.ExactlyOnce,
+				false,
+				fmt.Sprintf("%v", sensor.Temperature),
+			)
+			if err != nil {
+				log.Print(err)
+			}
+		}
+
+		devices := broadlinkClient.GetDevices()
+
+		for _, device := range devices {
+			sensorData, err := device.GetSensorData(time.Second * 5)
+			if err != nil {
+				log.Printf("warning: failed to get sensor data for %v @ %v (%#+v): %v",
+					device.MAC.String(), device.Addr.IP.String(), device.Name,
+					err,
+				)
+				continue
+			}
+
+			topicFriendlyName := ""
+
+			for i := 0; i < 64; i++ {
+				rawTopicName := strings.TrimSpace(device.Name)
+				if rawTopicName == "" {
+					rawTopicName = device.MAC.String()
+				}
+
+				possibleTopicFriendlyName := getTopicFriendlyName(rawTopicName)
+				if i != 0 {
+					possibleTopicFriendlyName = fmt.Sprintf("%v-%v", getTopicFriendlyName(rawTopicName), i)
+				}
+
+				if topicFriendlyNames[possibleTopicFriendlyName] {
+					continue
+				}
+
+				topicFriendlyName = possibleTopicFriendlyName
 				break
 			}
 
-			topicFriendlyNames := make(map[string]bool)
-
-			for _, sensor := range sensors {
-				topicFriendlyNames[getTopicFriendlyName(sensor.Name)] = true
-
-				err = mqttClient.Publish(
-					fmt.Sprintf(
-						"%v/%v/%v/%v",
-						topicPrefix,
-						getTopicFriendlyName(sensor.Name),
-						presenceAffix,
-						topicSuffix,
-					),
-					mqtt.ExactlyOnce,
-					false,
-					getIntStringFromBool(sensor.Presence),
-				)
-				if err != nil {
-					log.Print(err)
-				}
-
-				err = mqttClient.Publish(
-					fmt.Sprintf(
-						"%v/%v/%v/%v",
-						topicPrefix,
-						getTopicFriendlyName(sensor.Name),
-						lightLevelAffix,
-						topicSuffix,
-					),
-					mqtt.ExactlyOnce,
-					false,
-					fmt.Sprintf("%v", sensor.LightLevel),
-				)
-				if err != nil {
-					log.Print(err)
-				}
-
-				err = mqttClient.Publish(
-					fmt.Sprintf(
-						"%v/%v/%v/%v",
-						topicPrefix,
-						getTopicFriendlyName(sensor.Name),
-						darkAffix,
-						topicSuffix,
-					),
-					mqtt.ExactlyOnce,
-					false,
-					getIntStringFromBool(sensor.Dark),
-				)
-				if err != nil {
-					log.Print(err)
-				}
-
-				err = mqttClient.Publish(
-					fmt.Sprintf(
-						"%v/%v/%v/%v",
-						topicPrefix,
-						getTopicFriendlyName(sensor.Name),
-						daylightAffix,
-						topicSuffix,
-					),
-					mqtt.ExactlyOnce,
-					false,
-					getIntStringFromBool(sensor.Daylight),
-				)
-				if err != nil {
-					log.Print(err)
-				}
-
-				err = mqttClient.Publish(
-					fmt.Sprintf(
-						"%v/%v/%v/%v",
-						topicPrefix,
-						getTopicFriendlyName(sensor.Name),
-						temperatureAffix,
-						topicSuffix,
-					),
-					mqtt.ExactlyOnce,
-					false,
-					fmt.Sprintf("%v", sensor.Temperature),
-				)
-				if err != nil {
-					log.Print(err)
-				}
+			if topicFriendlyName == "" {
+				log.Printf("warning: failed to find unconflicting topic friendly name for %#+v", device)
+				continue
 			}
 
-			devices := broadlinkClient.GetDevices()
+			topicFriendlyNames[topicFriendlyName] = true
 
-			for _, device := range devices {
-				sensorData, err := device.GetSensorData(time.Second * 5)
-				if err != nil {
-					log.Printf("warning: failed to get sensor data for %v @ %v (%#+v): %v",
-						device.MAC.String(), device.Addr.IP.String(), device.Name,
-						err,
-					)
-					continue
-				}
+			err = mqttClient.Publish(
+				fmt.Sprintf(
+					"%v/%v/%v/%v",
+					topicPrefix,
+					topicFriendlyName,
+					temperatureAffix,
+					topicSuffix,
+				),
+				mqtt.ExactlyOnce,
+				false,
+				fmt.Sprintf("%v", sensorData.Temperature),
+			)
+			if err != nil {
+				log.Print(err)
+			}
 
-				topicFriendlyName := ""
-
-				for i := 0; i < 64; i++ {
-					possibleTopicFriendlyName := getTopicFriendlyName(device.Name)
-					if i != 0 {
-						possibleTopicFriendlyName = fmt.Sprintf("%v-%v", getTopicFriendlyName(device.Name), i)
-					}
-
-					if topicFriendlyNames[possibleTopicFriendlyName] {
-						continue
-					}
-
-					topicFriendlyName = possibleTopicFriendlyName
-					break
-				}
-
-				if topicFriendlyName == "" {
-					log.Printf("warning: failed to find unconflicting topic friendly name for %#+v", device)
-					continue
-				}
-
-				topicFriendlyNames[topicFriendlyName] = true
-
-				err = mqttClient.Publish(
-					fmt.Sprintf(
-						"%v/%v/%v/%v",
-						topicPrefix,
-						topicFriendlyName,
-						temperatureAffix,
-						topicSuffix,
-					),
-					mqtt.ExactlyOnce,
-					false,
-					fmt.Sprintf("%v", sensorData.Temperature),
-				)
-				if err != nil {
-					log.Print(err)
-				}
-
-				err = mqttClient.Publish(
-					fmt.Sprintf(
-						"%v/%v/%v/%v",
-						topicPrefix,
-						topicFriendlyName,
-						humidityAffix,
-						topicSuffix,
-					),
-					mqtt.ExactlyOnce,
-					false,
-					fmt.Sprintf("%v", sensorData.Humidity),
-				)
-				if err != nil {
-					log.Print(err)
-				}
+			err = mqttClient.Publish(
+				fmt.Sprintf(
+					"%v/%v/%v/%v",
+					topicPrefix,
+					topicFriendlyName,
+					humidityAffix,
+					topicSuffix,
+				),
+				mqtt.ExactlyOnce,
+				false,
+				fmt.Sprintf("%v", sensorData.Humidity),
+			)
+			if err != nil {
+				log.Print(err)
 			}
 		}
 	}

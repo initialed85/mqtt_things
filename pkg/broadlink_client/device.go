@@ -236,6 +236,11 @@ func (d *Device) GetSensorData(timeout time.Duration) (*SensorData, error) {
 		Humidity:    float64(rawSensorData[0x02]) + float64(rawSensorData[0x03])/100.0,
 	}
 
+	// TODO: super arbitrary, but seems to be a thing w/ these new ones I got (tried two cables on same unit, same behaviour)
+	if d.Type == 21004 {
+		s.Temperature -= 5
+	}
+
 	return &s, nil
 }
 

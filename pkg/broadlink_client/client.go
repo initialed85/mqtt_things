@@ -67,7 +67,7 @@ type Client struct {
 	conn               *net.UDPConn
 	sourceAddr         *net.UDPAddr
 	sourceHardwareAddr *net.HardwareAddr
-	uhandledRequests   chan *Request
+	unhandledRequests  chan *Request
 	requestByRequestID map[RequestID]*Request
 	sequenceNumber     int16
 }
@@ -75,7 +75,7 @@ type Client struct {
 func NewClient() (c *Client, err error) {
 	c = &Client{
 		mu:                 new(sync.Mutex),
-		uhandledRequests:   make(chan *Request, 1024),
+		unhandledRequests:  make(chan *Request, 1024),
 		requestByRequestID: make(map[RequestID]*Request),
 		sequenceNumber:     int16(rand.Float32() * math.MaxInt16),
 	}
@@ -239,13 +239,29 @@ loop:
 	}()
 	runtime.Gosched()
 
+	t := time.NewTicker(time.Second * 10)
+
 	go func() {
 		for {
 			select {
 			case <-c.ctx.Done():
 				log.Printf("warning: write goroutine canceled")
 				return
-			case request := <-c.uhandledRequests:
+			case <-t.C:
+				requestIDsToBeDeleted := make([]RequestID, 0)
+
+				c.mu.Lock()
+				for requestID, request := range c.requestByRequestID {
+					if time.Since(request.SentAt) > time.Second*30 {
+						requestIDsToBeDeleted = append(requestIDsToBeDeleted, requestID)
+					}
+				}
+
+				for _, requestID := range requestIDsToBeDeleted {
+					delete(c.requestByRequestID, requestID)
+				}
+				c.mu.Unlock()
+			case request := <-c.unhandledRequests:
 				c.mu.Lock()
 				conn := c.conn
 				c.mu.Unlock()
@@ -332,7 +348,7 @@ func (c *Client) send(request *Request) error {
 	}
 
 	select {
-	case c.uhandledRequests <- request:
+	case c.unhandledRequests <- request:
 	default:
 		return fmt.Errorf("unhandled request channel unexpectedly full")
 	}
