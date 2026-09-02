@@ -24,8 +24,8 @@ a60f001b0bdcd4f64a49719eb2307270-ee5cf64f94dbf2ed.elb.us-east-1.amazonaws.com. 3
 a60f001b0bdcd4f64a49719eb2307270-ee5cf64f94dbf2ed.elb.us-east-1.amazonaws.com. 39 IN A 34.232.250.77
 */
 
-const upstreamURL = "http://pws-ingest-use1-01.sun.weather.com" // because we've spoofed rtupdate.wunderground.com
-const upstreamHost = "rtupdate.wunderground.com"                // in case they insist on this host header at some point
+const upstreamURL = "http://pws-ingest-alb-use1-01.sun.weather.com" // because we've spoofed rtupdate.wunderground.com
+const upstreamHost = "rtupdate.wunderground.com"                    // in case they insist on this host header at some point
 
 /*
 method: GET
