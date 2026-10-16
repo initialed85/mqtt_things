@@ -4,10 +4,12 @@ use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_hal::gpio::*;
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::reset::restart;
-use esp_idf_svc::mqtt::client::{EspMqttClient, MqttClientConfiguration};
-use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
+use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_svc::mqtt::client::{EventPayload, EspMqttClient, MqttClientConfiguration};
+use esp_idf_svc::nvs::EspDefaultNvsPartition;
+use esp_idf_svc::wifi::EspWifi;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const WIFI_SSID: &str = "Get schwifty";
 const WIFI_PSK: &str = "P@$$w0rd1";
@@ -28,10 +30,35 @@ const SET_TOPIC_3: &str = "home/outside/sprinklers/bank/3/state/set";
 const GET_TOPIC_2: &str = "home/outside/sprinklers/bank/2/state/get";
 const SET_TOPIC_2: &str = "home/outside/sprinklers/bank/2/state/set";
 
+/// Every topic we must (re-)subscribe to after every MQTT connection.
+const SUBSCRIBE_TOPICS: &[&str] = &[
+    SET_TOPIC_4, GET_TOPIC_4, SET_TOPIC_3, GET_TOPIC_3, SET_TOPIC_2, GET_TOPIC_2,
+];
+
+/// How often we re-ask esp_wifi to (re)connect while the link is down.
+const WIFI_RECONNECT_INTERVAL: Duration = Duration::from_secs(5);
+
+/// Last-resort escape hatch: if wifi has been down this long, reboot.
+const WIFI_REBOOT_AFTER: Duration = Duration::from_secs(10 * 60);
+
+/// How often the main loop ticks (also the max latency for a queued publish).
+const MAIN_LOOP_TICK: Duration = Duration::from_millis(1000);
+
+/// How often we print a status line to the log.
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
+
 #[derive(Debug, Clone)]
 struct OutgoingMessage {
     topic: String,
     data: Vec<u8>,
+}
+
+fn apply_relay(pin: &mut PinDriver<'_, Output>, value: &str) -> bool {
+    match value {
+        ON => pin.set_high().is_ok(),
+        OFF => pin.set_low().is_ok(),
+        _ => false,
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,9 +73,9 @@ fn main() -> anyhow::Result<()> {
     let sys_loop = EspSystemEventLoop::take().context("failed EspSystemEventLoop::take()")?;
     let nvs = EspDefaultNvsPartition::take().context("failed EspDefaultNvsPartition::take()")?;
 
-    let mut relay_4 = PinDriver::output(peripherals.pins.gpio27)?;
-    let mut relay_3 = PinDriver::output(peripherals.pins.gpio14)?;
-    let mut relay_2 = PinDriver::output(peripherals.pins.gpio12)?;
+    let relay_4 = PinDriver::output(peripherals.pins.gpio27)?;
+    let relay_3 = PinDriver::output(peripherals.pins.gpio14)?;
+    let relay_2 = PinDriver::output(peripherals.pins.gpio12)?;
 
     let mut wifi_driver =
         EspWifi::new(peripherals.modem, sys_loop, Some(nvs)).context("failed EspWifi::new()")?;
@@ -67,51 +94,30 @@ fn main() -> anyhow::Result<()> {
         .context("failed wifi_driver.get_configuration()")?;
     log::info!("wifi_config={:?}", wifi_config);
 
-    wifi_driver.start().context("failed wifi_driver.start()")?;
-
     wifi_driver
-        .connect()
-        .context("failed wifi_driver.connect()")?;
+        .start()
+        .context("failed wifi_driver.start()")?;
 
-    let expiry = std::time::SystemTime::now()
-        .checked_add(std::time::Duration::from_secs(10))
-        .context("failed time stuff")?;
-
-    while !wifi_driver.is_up().context("failed wifi_driver.is_up()")? {
-        let duration_since_expiry = std::time::SystemTime::now().duration_since(expiry);
-
-        if !duration_since_expiry.is_err()
-            && duration_since_expiry? > std::time::Duration::from_secs(0)
-        {
-            log::error!("timed out waiting for wifi_driver.is_up(); will reboot");
-            restart();
-        }
-
-        log::info!("waiting for wifi_driver.is_up()...");
-        std::thread::sleep(std::time::Duration::from_secs(1));
+    // Kick off the first connection; the main loop keeps asking for it until it sticks.
+    match wifi_driver.connect() {
+        Ok(()) => log::info!("wifi connect() requested"),
+        Err(e) => log::warn!("initial wifi connect() failed: {:?} (will retry)", e),
     }
-    log::info!("connected.");
-
-    let ip_info = wifi_driver
-        .sta_netif()
-        .get_ip_info()
-        .context("failed wifi_driver.sta_netif().get_ip_info()")?;
-    log::info!("ip_info={:?}", ip_info);
 
     let mac = wifi_driver
         .sta_netif()
         .get_mac()
         .context("failed wifi_driver.sta_netif().get_mac()")?;
-    log::info!("mac={:?}", mac);
+    log::info!("mac={:?}", mac.to_ascii_lowercase());
 
-    let client_id = format!(
-        "mqtt-things-esp32-sprinklers-{:?}",
-        mac.to_ascii_lowercase()
-    );
+    let client_id = format!("mqtt-things-esp32-sprinklers-{:?}", mac.to_ascii_lowercase());
 
     let conf = MqttClientConfiguration {
         client_id: Some(&client_id),
         keep_alive_interval: Some(Duration::from_secs(30)),
+        // esp-mqtt only enables auto-reconnect when this is Some(..);
+        // this is the delay it waits before each reconnect attempt.
+        reconnect_timeout: Some(Duration::from_secs(5)),
         ..Default::default()
     };
 
@@ -121,57 +127,43 @@ fn main() -> anyhow::Result<()> {
     let (outgoing_message_sender, outgoing_message_receiver) =
         std::sync::mpsc::sync_channel::<OutgoingMessage>(1024);
 
-    let ready_to_subscribe = Arc::new(Mutex::new(false));
-    let thread_ready_to_subscribe = Arc::clone(&ready_to_subscribe);
+    // Set by the MQTT handler thread whenever we (re)connect and must re-subscribe.
+    let need_resubscribe = Arc::new(Mutex::new(true));
+    // Mirrors the esp-mqtt connection state so we only subscribe when it's usable.
+    let mqtt_connected = Arc::new(Mutex::new(false));
+
+    let handler_need_resubscribe = Arc::clone(&need_resubscribe);
+    let handler_mqtt_connected = Arc::clone(&mqtt_connected);
 
     let handler = std::thread::Builder::new()
         .stack_size(65536)
-        .spawn(move || -> anyhow::Result<()> {
-            let mut reset_state_handled = false;
+        .spawn(move || -> () {
+            let mut relay_4 = relay_4;
+            let mut relay_3 = relay_3;
+            let mut relay_2 = relay_2;
 
             loop {
-                let reset_state_handled = &mut reset_state_handled;
-
-                let outgoing_message_sender = &outgoing_message_sender;
-
-                let msg = connection.next();
-
-                match msg {
-                    Err(e) => log::error!("error: {:?}", e),
+                match connection.next() {
+                    Err(e) => log::error!("mqtt connection error: {:?}", e),
                     Ok(msg) => match msg.payload() {
-                        esp_idf_svc::mqtt::client::EventPayload::BeforeConnect => {
-                            log::info!("mqtt BeforeConnect");
-                        }
-                        esp_idf_svc::mqtt::client::EventPayload::Connected(_) => {
+                        EventPayload::BeforeConnect => log::info!("mqtt BeforeConnect"),
+                        EventPayload::Connected(_) => {
                             log::info!("mqtt Connected");
-
-                            let mut this_ready_to_subscribe =
-                                thread_ready_to_subscribe.lock().unwrap();
-                            *this_ready_to_subscribe = true;
-                            drop(this_ready_to_subscribe);
+                            *handler_mqtt_connected.lock().unwrap() = true;
+                            // Subscriptions are NOT restored by esp-mqtt (clean session),
+                            // so flag the main loop to re-subscribe everything.
+                            *handler_need_resubscribe.lock().unwrap() = true;
                         }
-                        esp_idf_svc::mqtt::client::EventPayload::Disconnected => {
-                            log::info!("mqtt Disconnected");
-
-                            log::info!("exiting handler...");
-                            return Ok(());
+                        EventPayload::Disconnected => {
+                            log::info!("mqtt Disconnected (esp-mqtt will auto-reconnect)");
+                            *handler_mqtt_connected.lock().unwrap() = false;
                         }
-                        esp_idf_svc::mqtt::client::EventPayload::Subscribed(_) => {
-                            log::info!("mqtt Subscribed");
-                        }
-                        esp_idf_svc::mqtt::client::EventPayload::Unsubscribed(_) => {
-                            log::info!("mqtt Unsubscribed");
-                        }
-                        esp_idf_svc::mqtt::client::EventPayload::Published(_) => {
-                            log::info!("mqtt Published");
-                        }
-                        esp_idf_svc::mqtt::client::EventPayload::Deleted(_) => {
-                            log::info!("mqtt Deleted");
-                        }
-                        esp_idf_svc::mqtt::client::EventPayload::Error(e) => {
-                            log::info!("mqtt Error: {:?}", e);
-                        }
-                        esp_idf_svc::mqtt::client::EventPayload::Received {
+                        EventPayload::Subscribed(_) => log::info!("mqtt Subscribed"),
+                        EventPayload::Unsubscribed(_) => log::info!("mqtt Unsubscribed"),
+                        EventPayload::Published(_) => log::info!("mqtt Published"),
+                        EventPayload::Deleted(_) => log::info!("mqtt Deleted"),
+                        EventPayload::Error(e) => log::info!("mqtt Error: {:?}", e),
+                        EventPayload::Received {
                             id,
                             topic,
                             data,
@@ -185,262 +177,54 @@ fn main() -> anyhow::Result<()> {
                                 details
                             );
 
-                            if topic.is_none() {
+                            let Some(topic) = topic else {
                                 log::error!("skipping mqtt message with missing topic");
                                 continue;
-                            }
-                            let mut topic = topic.unwrap().to_string();
+                            };
+                            let topic = topic.to_string();
 
                             if data.is_empty() {
                                 log::error!("skipping mqtt message with empty data");
                                 continue;
                             }
 
-                            let as_utf8 = String::from_utf8(data.to_vec());
-                            if as_utf8.is_err() {
-                                log::error!("failed to convert {:?} to utf8; {:?}", data, as_utf8);
+                            let Ok(as_utf8) = String::from_utf8(data.to_vec()) else {
+                                log::error!("failed to convert {:?} to utf8", data);
+                                continue;
+                            };
+                            let as_utf8 = as_utf8.to_uppercase();
+
+                            // GET topics are polled by the broker; we only act on SET.
+                            if topic == GET_TOPIC_4 || topic == GET_TOPIC_3 || topic == GET_TOPIC_2 {
                                 continue;
                             }
-                            let as_utf8 = as_utf8?.to_uppercase();
 
-                            log::info!(
-                                "id: {:?}, topic: {:?}, data: {:?}, details: {:?}, as_utf8: {:?}",
-                                id,
-                                topic,
-                                data,
-                                details,
-                                as_utf8
-                            );
+                            let (relay, get_topic) = match topic.as_str() {
+                                SET_TOPIC_4 => (&mut relay_4, GET_TOPIC_4),
+                                SET_TOPIC_3 => (&mut relay_3, GET_TOPIC_3),
+                                SET_TOPIC_2 => (&mut relay_2, GET_TOPIC_2),
+                                _ => continue,
+                            };
 
-                            //
-                            // relay 4
-                            //
-
-                            if topic == GET_TOPIC_4 {
-                                let skip = true;
-
-                                if !*reset_state_handled {
-                                    *reset_state_handled = true;
-                                    topic = SET_TOPIC_4.into();
-                                }
-
-                                if skip {
-                                    continue;
-                                }
+                            if !apply_relay(relay, &as_utf8) {
+                                log::error!(
+                                    "failed to handle state for {:?}: {:?}",
+                                    topic,
+                                    as_utf8
+                                );
+                                continue;
                             }
 
-                            if topic == SET_TOPIC_4 {
-                                if as_utf8 == ON {
-                                    let result = relay_4.set_high();
-                                    if result.is_err() {
-                                        log::error!(
-                                            "failed to handle state enable for {:?}: {:?}",
-                                            topic,
-                                            as_utf8
-                                        );
-                                        continue;
-                                    }
+                            log::info!("handled state for {:?}: {:?}", topic, as_utf8);
 
-                                    log::info!(
-                                        "handled state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                } else if as_utf8 == OFF {
-                                    let result = relay_4.set_low();
-                                    if result.is_err() {
-                                        log::error!(
-                                            "failed to handle state disable for {:?}: {:?}",
-                                            topic,
-                                            as_utf8
-                                        );
-                                        continue;
-                                    }
+                            let outgoing_message = OutgoingMessage {
+                                topic: get_topic.to_string(),
+                                data: as_utf8.into_bytes(),
+                            };
 
-                                    log::info!(
-                                        "handled state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                } else {
-                                    log::error!(
-                                        "failed to handle state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                    continue;
-                                }
-
-                                let outgoing_message_topic = GET_TOPIC_4.into();
-                                let outgoing_message_data = as_utf8.to_string().into_bytes();
-                                let outgoing_message = OutgoingMessage {
-                                    topic: outgoing_message_topic,
-                                    data: outgoing_message_data,
-                                };
-
-                                log::info!("requesting publish of {:?}", outgoing_message);
-                                let result = outgoing_message_sender.send(outgoing_message.clone());
-                                if result.is_err() {
-                                    log::error!(
-                                        "failed to handle publish to set topic; {:?}",
-                                        outgoing_message,
-                                    );
-                                    continue;
-                                }
-                            }
-
-                            //
-                            // relay 3
-                            //
-
-                            if topic == GET_TOPIC_3 {
-                                let skip = true;
-
-                                if !*reset_state_handled {
-                                    *reset_state_handled = true;
-                                    topic = SET_TOPIC_3.into();
-                                }
-
-                                if skip {
-                                    continue;
-                                }
-                            }
-
-                            if topic == SET_TOPIC_3 {
-                                if as_utf8 == ON {
-                                    let result = relay_3.set_high();
-                                    if result.is_err() {
-                                        log::error!(
-                                            "failed to handle state enable for {:?}: {:?}",
-                                            topic,
-                                            as_utf8
-                                        );
-                                        continue;
-                                    }
-
-                                    log::info!(
-                                        "handled state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                } else if as_utf8 == OFF {
-                                    let result = relay_3.set_low();
-                                    if result.is_err() {
-                                        log::error!(
-                                            "failed to handle state disable for {:?}: {:?}",
-                                            topic,
-                                            as_utf8
-                                        );
-                                        continue;
-                                    }
-
-                                    log::info!(
-                                        "handled state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                } else {
-                                    log::error!(
-                                        "failed to handle state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                    continue;
-                                }
-
-                                let outgoing_message_topic = GET_TOPIC_3.into();
-                                let outgoing_message_data = as_utf8.to_string().into_bytes();
-                                let outgoing_message = OutgoingMessage {
-                                    topic: outgoing_message_topic,
-                                    data: outgoing_message_data,
-                                };
-
-                                log::info!("requesting publish of {:?}", outgoing_message);
-                                let result = outgoing_message_sender.send(outgoing_message.clone());
-                                if result.is_err() {
-                                    log::error!(
-                                        "failed to handle publish to set topic; {:?}",
-                                        outgoing_message,
-                                    );
-                                    continue;
-                                }
-                            }
-
-                            //
-                            // relay 2
-                            //
-
-                            if topic == GET_TOPIC_2 {
-                                let skip = true;
-
-                                if !*reset_state_handled {
-                                    *reset_state_handled = true;
-                                    topic = SET_TOPIC_2.into();
-                                }
-
-                                if skip {
-                                    continue;
-                                }
-                            }
-
-                            if topic == SET_TOPIC_2 {
-                                if as_utf8 == ON {
-                                    let result = relay_2.set_high();
-                                    if result.is_err() {
-                                        log::error!(
-                                            "failed to handle state enable for {:?}: {:?}",
-                                            topic,
-                                            as_utf8
-                                        );
-                                        continue;
-                                    }
-
-                                    log::info!(
-                                        "handled state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                } else if as_utf8 == OFF {
-                                    let result = relay_2.set_low();
-                                    if result.is_err() {
-                                        log::error!(
-                                            "failed to handle state disable for {:?}: {:?}",
-                                            topic,
-                                            as_utf8
-                                        );
-                                        continue;
-                                    }
-
-                                    log::info!(
-                                        "handled state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                } else {
-                                    log::error!(
-                                        "failed to handle state enable for {:?}: {:?}",
-                                        topic,
-                                        as_utf8
-                                    );
-                                    continue;
-                                }
-
-                                let outgoing_message_topic = GET_TOPIC_2.into();
-                                let outgoing_message_data = as_utf8.to_string().into_bytes();
-                                let outgoing_message = OutgoingMessage {
-                                    topic: outgoing_message_topic,
-                                    data: outgoing_message_data,
-                                };
-
-                                log::info!("requesting publish of {:?}", outgoing_message);
-                                let result = outgoing_message_sender.send(outgoing_message.clone());
-                                if result.is_err() {
-                                    log::error!(
-                                        "failed to handle publish to set topic; {:?}",
-                                        outgoing_message,
-                                    );
-                                    continue;
-                                }
+                            log::info!("requesting publish of {:?}", outgoing_message);
+                            if outgoing_message_sender.send(outgoing_message).is_err() {
+                                log::error!("failed to queue publish for set topic");
                             }
                         }
                     },
@@ -449,82 +233,97 @@ fn main() -> anyhow::Result<()> {
         })
         .context("failed std::thread::Builder::new()")?;
 
-    log::info!("waiting to be ready to subscribe...");
-    loop {
-        let this_ready_to_subscribe = ready_to_subscribe.try_lock().unwrap();
-        if *this_ready_to_subscribe {
-            drop(this_ready_to_subscribe);
-            break;
-        }
-
-        std::thread::sleep(std::time::Duration::from_secs(1));
-    }
-
-    //
-    // relay 4
-    //
-
-    log::info!("subscribing to {:?}", SET_TOPIC_4);
-    client
-        .subscribe(SET_TOPIC_4, QoS::AtMostOnce)
-        .context("failed client.subscribe()")?;
-
-    log::info!("subscribing to {:?}", GET_TOPIC_4);
-    client
-        .subscribe(GET_TOPIC_4, QoS::AtMostOnce)
-        .context("failed client.subscribe()")?;
-
-    //
-    // relay 3
-    //
-
-    log::info!("subscribing to {:?}", SET_TOPIC_3);
-    client
-        .subscribe(SET_TOPIC_3, QoS::AtMostOnce)
-        .context("failed client.subscribe()")?;
-
-    log::info!("subscribing to {:?}", GET_TOPIC_3);
-    client
-        .subscribe(GET_TOPIC_3, QoS::AtMostOnce)
-        .context("failed client.subscribe()")?;
-
-    //
-    // relay 2
-    //
-
-    log::info!("subscribing to {:?}", SET_TOPIC_2);
-    client
-        .subscribe(SET_TOPIC_2, QoS::AtMostOnce)
-        .context("failed client.subscribe()")?;
-
-    log::info!("subscribing to {:?}", GET_TOPIC_2);
-    client
-        .subscribe(GET_TOPIC_2, QoS::AtMostOnce)
-        .context("failed client.subscribe()")?;
+    let mut last_wifi_connect = Instant::now();
+    let mut wifi_down_since: Option<Instant> = None;
+    let mut last_heartbeat = Instant::now();
 
     loop {
-        let handler = &handler;
         if handler.is_finished() {
-            log::error!("handler unexpectedly exited; will reboot");
+            log::error!("mqtt handler thread exited; will reboot");
             restart();
         }
 
-        let outgoing_message =
-            outgoing_message_receiver.recv_timeout(std::time::Duration::from_millis(5000));
-        if outgoing_message.is_err() {
-            continue;
+        //
+        // wifi watchdog: esp_wifi does NOT auto-reconnect, so re-ask for it
+        // every WIFI_RECONNECT_INTERVAL while the link is down.
+        //
+        let wifi_up = wifi_driver.is_up().unwrap_or(false);
+
+        if !wifi_up {
+            let down_since = *(wifi_down_since.get_or_insert_with(Instant::now));
+
+            if last_wifi_connect.elapsed() >= WIFI_RECONNECT_INTERVAL {
+                last_wifi_connect = Instant::now();
+                match wifi_driver.connect() {
+                    Ok(()) => log::info!("wifi down: connect() requested"),
+                    Err(e) => log::warn!("wifi connect() failed: {:?}", e),
+                }
+            }
+
+            if down_since.elapsed() > WIFI_REBOOT_AFTER {
+                log::error!("wifi down for {:?}; will reboot", down_since);
+                restart();
+            }
+        } else if wifi_down_since.take().is_some() {
+            log::info!("wifi recovered");
+            // esp-mqtt may be sitting on a dead socket; make sure it notices.
+            last_wifi_connect = Instant::now();
         }
-        let outgoing_message = outgoing_message?;
 
-        client
-            .publish(
-                &outgoing_message.topic,
-                QoS::AtMostOnce,
-                true,
-                &outgoing_message.data,
-            )
-            .context("failed client.publish")?;
+        //
+        // mqtt: re-subscribe after every (re)connect. esp-mqtt reconnects the
+        // socket itself, but subscriptions are lost (clean session), so we
+        // must re-subscribe ourselves.
+        //
+        if *mqtt_connected.lock().unwrap() && *need_resubscribe.lock().unwrap() {
+            let mut all_ok = true;
 
-        log::info!("published {:?}", outgoing_message);
+            for topic in SUBSCRIBE_TOPICS {
+                match client.subscribe(topic, QoS::AtMostOnce) {
+                    Ok(id) => log::info!("subscribed to {:?} (id {:?})", topic, id),
+                    Err(e) => {
+                        log::warn!("subscribe to {:?} failed: {:?}", topic, e);
+                        all_ok = false;
+                    }
+                }
+            }
+
+            if all_ok {
+                *need_resubscribe.lock().unwrap() = false;
+            }
+        }
+
+        //
+        // publish anything the handler queued; never propagate the error,
+        // a publish failure while disconnected must not kill the main task.
+        //
+        match outgoing_message_receiver.recv_timeout(MAIN_LOOP_TICK) {
+            Ok(outgoing_message) => {
+                if client
+                    .publish(
+                        &outgoing_message.topic,
+                        QoS::AtMostOnce,
+                        true,
+                        &outgoing_message.data,
+                    )
+                    .is_ok()
+                {
+                    log::info!("published {:?}", outgoing_message);
+                } else {
+                    log::warn!("publish failed (mqtt not connected?): {:?}", outgoing_message);
+                }
+            }
+            Err(_) => {}
+        }
+
+        if last_heartbeat.elapsed() >= HEARTBEAT_INTERVAL {
+            last_heartbeat = Instant::now();
+            log::info!(
+                "heartbeat: wifi_up={:?}, mqtt_connected={:?}, wifi_down_for={:?}",
+                wifi_up,
+                *mqtt_connected.lock().unwrap(),
+                wifi_down_since.map(|since| since.elapsed())
+            );
+        }
     }
 }
