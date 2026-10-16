@@ -1,6 +1,6 @@
 module github.com/initialed85/mqtt_things
 
-go 1.21
+go 1.23
 
 require (
 	github.com/amimof/huego v1.2.1
@@ -28,6 +28,8 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.15.0 // indirect
+	github.com/relvacode/iso8601 v1.8.2 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
