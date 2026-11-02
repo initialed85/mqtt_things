@@ -1,0 +1,105 @@
+# Six CLIs, one commit, one image per CLI: the prod `mqtt-things` app runs sensors-cli, smart-aircons-cli,
+# weather-cli, http-cli, topic-exporter-cli and smartplugs-cli as long-lived deployments (mosquitto,
+# mqtt-cli and the Prometheus/Grafana side of the old compose stack are not built here).
+#
+# The image is `docker/cli/Dockerfile`, whose builder stage is commented out: it copies a prebuilt
+# `./entrypoint` onto ubuntu:22.04. That is why the compile step writes one `entrypoint` per image into
+# `bin/<image-name>/` and the docker step builds each of those directories as its own context — the
+# Dockerfile stays outside the contexts, which docker allows (`-f` is relative to the CWD).
+#
+# sprinklers-cli is deliberately absent: it runs on the ARM64 node under the house against a serial relay
+# (nodeSelector + dev-ttyacm-0), and its image is built arm64 by hand. Building it here would need qemu
+# binfmt on the daemon for the `apt-get install sqlite3` RUN.
+#
+# The tests are pkg/ only — pure Go (no sqlite/CGO in go.mod, no broker needed). `cmd/broadlink_client`
+# does not compile (it imports a package whose declaration is missing) and `go vet ./...` walks into it
+# via the importers, so the package list is filtered; `go build ./...` is not used anywhere for that reason.
+steps:
+  - name: test
+    image: docker.io/library/golang:1.26
+    commands:
+      - go version
+      - gofmt -l .
+      - test -z "$(gofmt -l .)"
+      - go vet $(go list ./... | grep -v broadlink_client)
+      - go test -count=1 $(go list ./pkg/... | grep -v broadlink_client)
+
+  - name: compile-images
+    image: docker.io/library/golang:1.26
+    depends_on: [test]
+    environment:
+      GOOS: linux
+      GOARCH: amd64
+      CGO_ENABLED: '0'
+    commands:
+      - go version
+      - go build -v -o bin/sensors-cli/entrypoint ./cmd/sensors_cli/main.go
+      - go build -v -o bin/smart-aircons-cli/entrypoint ./cmd/smart_aircons_cli/main.go
+      - go build -v -o bin/weather-cli/entrypoint ./cmd/weather_cli/main.go
+      - go build -v -o bin/http-cli/entrypoint ./cmd/http_cli/main.go
+      - go build -v -o bin/topic-exporter-cli/entrypoint ./cmd/topic_exporter_cli/main.go
+      - go build -v -o bin/smartplugs-cli/entrypoint ./cmd/smartplugs_cli/main.go
+      - ls -l bin/*/entrypoint
+
+  - name: build-and-push
+    image: docker.io/library/docker:cli
+    privileged: true
+    depends_on: [compile-images]
+    environment:
+      DOCKER_HOST: tcp://docker-beefcake-ci-1:2375
+      REGISTRY: docker.io/initialed85
+    backend_options:
+      kubernetes:
+        secrets:
+          - name: dockerhub
+            key: username
+            target:
+              env: DOCKERHUB_USER
+          - name: dockerhub
+            key: token
+            target:
+              env: DOCKERHUB_TOKEN
+    commands:
+      - docker info --format 'daemon={{.Name}} images_before={{.Images}}'
+      - echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
+      - |
+        for name in sensors-cli smart-aircons-cli weather-cli http-cli topic-exporter-cli smartplugs-cli; do
+          docker build -f docker/cli/Dockerfile \
+            --platform=linux/amd64 \
+            -t "$REGISTRY/mqtt-things-$name:latest" \
+            -t "$REGISTRY/mqtt-things-$name:$CI_COMMIT_SHA" \
+            "bin/$name"
+          docker push "$REGISTRY/mqtt-things-$name:latest"
+          docker push "$REGISTRY/mqtt-things-$name:$CI_COMMIT_SHA"
+        done
+      - docker images --format '{{.Repository}}:{{.Tag}}' | grep mqtt-things | sort
+
+  - name: deploy-home-ops
+    image: docker.io/initialed85/wp-kustomize-deploy:latest
+    depends_on: [build-and-push]
+    settings:
+      # one tag for all six: they all come from this commit. The names must match the Deployment strings
+      # exactly (the plugin refuses to push a tag the rendered tree does not use).
+      image:
+        - docker.io/initialed85/mqtt-things-sensors-cli
+        - docker.io/initialed85/mqtt-things-smart-aircons-cli
+        - docker.io/initialed85/mqtt-things-weather-cli
+        - docker.io/initialed85/mqtt-things-http-cli
+        - docker.io/initialed85/mqtt-things-topic-exporter-cli
+        - docker.io/initialed85/mqtt-things-smartplugs-cli
+      dir: clusters/prod/applications/mqtt-things
+    backend_options:
+      kubernetes:
+        secrets:
+          - name: home-ops-deploy-key
+            key: id_ed25519
+            target:
+              env: PLUGIN_DEPLOY_KEY
+          - name: home-ops-deploy-key
+            key: known_hosts
+            target:
+              env: PLUGIN_KNOWN_HOSTS
+
+when:
+  - event: push
+    branch: master
