@@ -11,9 +11,12 @@
 # (nodeSelector + dev-ttyacm-0), and its image is built arm64 by hand. Building it here would need qemu
 # binfmt on the daemon for the `apt-get install sqlite3` RUN.
 #
-# The tests are pkg/ only — pure Go (no sqlite/CGO in go.mod, no broker needed). `cmd/broadlink_client`
-# does not compile (it imports a package whose declaration is missing) and `go vet ./...` walks into it
-# via the importers, so the package list is filtered; `go build ./...` is not used anywhere for that reason.
+# The tests are pkg/ only — pure Go (no sqlite/CGO in go.mod, no broker needed). Two packages are
+# filtered out of `go vet`: `cmd/broadlink_client` does not compile (it imports a package whose
+# declaration is missing, and `go vet ./...` walks into it via its importers), and `cmd/arp_cli` imports
+# gopacket/pcap, which needs libpcap headers the CI image does not have. Neither is one of the six
+# images, so the compile step is unaffected; the filter is on the package list rather than an apt install
+# so the gate does not depend on a Debian mirror.
 steps:
   - name: test
     image: docker.io/library/golang:1.26
@@ -21,8 +24,8 @@ steps:
       - go version
       - gofmt -l .
       - test -z "$(gofmt -l .)"
-      - go vet $(go list ./... | grep -v broadlink_client)
-      - go test -count=1 $(go list ./pkg/... | grep -v broadlink_client)
+      - go vet $(go list ./... | grep -vE 'broadlink_client|arp_cli')
+      - go test -count=1 $(go list ./pkg/... | grep -vE 'broadlink_client|arp_cli')
 
   - name: compile-images
     image: docker.io/library/golang:1.26
